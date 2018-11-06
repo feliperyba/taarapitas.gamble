@@ -260,7 +260,7 @@ export class CharGUI {
 		//Run number lerp animation effect
 		this.app.ticker.add(() => {
 			const valAux = this._gameLogicService.POTION_PRICE;
-			let lerpValue: any = this.lerp(valAux, parseInt(potionText.text), 0.5);
+			let lerpValue: any = this.lerp(valAux, parseInt(potionText.text), 0.51);
 			potionText.text = Math.round(lerpValue).toString();
 		});
 
@@ -270,6 +270,7 @@ export class CharGUI {
 			.on('pointerdown', () => {
 				if (this.char.credits - this._gameLogicService.POTION_PRICE >= 0) {
 					this.char.life += this._gameLogicService.POTION_HEALTH;
+					this.char.credits -= this._gameLogicService.POTION_PRICE;
 					if (this.char.life > this.char.totalLife) {
 						this.char.life = this.char.totalLife;
 					}
