@@ -21,7 +21,7 @@ yarn install
 ```
 
 # Game Design and Rules
-This is game is based on the mais principles of a slot machine game. You take one credit to spin the reels and if you land any combination, you'll earn credits and fill your special bar. If none combination was landed, you´ll take 5 hit points.
+This is game is based on the main principles of a slot machine game. You take one credit to spin the reels and if you land any combination, you'll earn credits and fill your special bar. If none combination was landed, you´ll take 5 hit points.
 
 The possibles combinatios are:
 
