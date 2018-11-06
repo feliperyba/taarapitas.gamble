@@ -1,0 +1,107 @@
+<div class="container">
+  <div class="row">
+    <div class="col-sm">
+      <h1>Debug</h1>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm">
+      <h4>Enable Debug</h4>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm">
+      <div class="row">
+        <input name="options" ng-control="options" type="radio" (ngModelChange)="setDebug()" [value]="true" [(ngModel)]="enableDebug">True<br />
+      </div>
+    </div>
+    <div class="col-sm">
+      <div class="row">
+        <input name="options" ng-control="options" type="radio" (ngModelChange)="setDebug()" [value]="false"
+          [(ngModel)]="enableDebug">False<br />
+      </div>
+    </div>
+  </div>
+</div>
+<br>
+<div class="container" *ngIf=enableDebug>
+  <div class="row">
+    <div class="col-xl">
+      <div class="row">
+        <div class="col-sm">
+          <h4>Set Credits</h4>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <div class="row">
+            <input type="number" [(ngModel)]="credits" (blur)="checkCreditValue(credits)">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm"><br></div>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <h4>Set Results</h4>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <div class="row">
+            <input name="result" ng-control="result" type="radio" [value]="true" [(ngModel)]="isFixed">Fixed<br />
+          </div>
+        </div>
+        <div class="col-sm">
+          <div class="row">
+            <input name="result" ng-control="result" type="radio" [value]="false" [(ngModel)]="isFixed">Random<br />
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm"><br></div>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <h4>Set Reel Value / Position</h4>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm" *ngFor="let reel of reelArr;let index = index">
+          <div class="row">
+            <select [(ngModel)]="reelArr[index].value" (ngModelChange)="setReelValue(index,$event)" [disabled]="!isFixed">
+              <option [value]=0>x3BAR</option>
+              <option [value]=1>BAR</option>
+              <option [value]=2>x2BAR</option>
+              <option [value]=3>SEVEN</option>
+              <option [value]=4>CHERRY</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm"><br></div>
+      </div>
+      <div class="row">
+        <div class="col-sm" *ngFor="let pos of posArr;let index = index">
+          <div class="row">
+            <select [(ngModel)]="posArr[index].value" (ngModelChange)="setPosValue(index,$event)" [disabled]="!isFixed" style="max-width: 5rem;">
+              <option [value]=1>TOP</option>
+              <option [value]=2>CENTER</option>
+              <option [value]=3>BOTTOM</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm"><br></div>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <button (click)="setDebugConf()">Set Debug Values</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
