@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { DebuggerService } from '../../services/debugger.service';
 
 export enum REEL_POSITIONS {
@@ -15,6 +15,7 @@ export enum REEL_VALUES {
 }
 
 @Component({
+	standalone: false,
 	selector: 'app-debug',
 	templateUrl: './debug.component.html',
 	styleUrls: [ './debug.component.scss' ]

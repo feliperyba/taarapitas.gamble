@@ -1,3 +1,51 @@
-h3 {
-	color: darkBlue;
+.game-shell {
+	position: relative;
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+	background: #000;
+}
+
+.pixi-host {
+	position: absolute;
+	inset: 0;
+	background: #000;
+}
+
+.debug-panel {
+	position: absolute;
+	top: 16px;
+	right: -288px;
+	width: 320px;
+	max-width: min(320px, 32vw);
+	max-height: calc(100vh - 32px);
+	overflow: auto;
+	z-index: 2;
+	background: rgba(246, 241, 228, 0.94);
+	border-radius: 18px 0 0 18px;
+	box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+	opacity: 0.42;
+	transition: right 180ms ease, opacity 180ms ease;
+}
+
+.debug-panel::before {
+	content: "Debug";
+	position: absolute;
+	left: -42px;
+	top: 22px;
+	padding: 12px 10px;
+	border-radius: 14px 0 0 14px;
+	background: rgba(246, 241, 228, 0.94);
+	color: #2b160d;
+	font: 700 14px/1 Primitive, serif;
+	letter-spacing: 1px;
+	writing-mode: vertical-rl;
+	text-orientation: mixed;
+	box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+}
+
+.debug-panel:hover,
+.debug-panel:focus-within {
+	right: 0;
+	opacity: 1;
 }

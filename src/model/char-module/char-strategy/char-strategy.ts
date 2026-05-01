@@ -2,6 +2,7 @@ import { Char } from '../../../model/char-module/char';
 import { Texture } from 'pixi.js';
 import { GameStates } from '../../../services/game-logic.service';
 import { Reel } from '../../reel';
+import { getTexture } from '../../../rendering/assets';
 
 export namespace CharStrategy {
 	export interface CharStrategy {
@@ -23,8 +24,8 @@ export namespace CharStrategy {
 
 	export class WarriorClassStrategy implements CharStrategy {
 		public NAME = 'Warrior';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/warrior.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/warrior_background.png'].texture;
+		public PORTRAIT: Texture = getTexture('assets/warrior.png');
+		public BACKGROUND: Texture = getTexture('assets/warrior_background.png');
 		public LIFE = 25;
 		public CREDITS = 35;
 		public SKILL_DESC = 'Warrior Skill creates a shield protector that last one hit';
@@ -41,8 +42,8 @@ export namespace CharStrategy {
 
 	export class BerserkerClassStrategy implements CharStrategy {
 		public NAME = 'Berserker';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/berserker.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/berserker_background.png'].texture;
+		public PORTRAIT: Texture = getTexture('assets/berserker.png');
+		public BACKGROUND: Texture = getTexture('assets/berserker_background.png');
 		public LIFE = 30;
 		public CREDITS = 20;
 		public SKILL_DESC = 'Berserker Skill Makes every Spinner roll 2 slots';
@@ -53,7 +54,7 @@ export namespace CharStrategy {
 			return char;
 		}
 		public useSkill(target: any) {
-			for (let reel of target.reelArr) {
+			for (const reel of target.reelArr) {
 				for (let i = 0; i < 2; i++) {
 					target.arrayRotateOne(reel.symbolsPosition, true);
 				}
@@ -64,8 +65,8 @@ export namespace CharStrategy {
 
 	export class ClericClassStrategy implements CharStrategy {
 		public NAME = 'Cleric';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/cleric.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/cleric_background.png'].texture;
+		public PORTRAIT: Texture = getTexture('assets/cleric.png');
+		public BACKGROUND: Texture = getTexture('assets/cleric_background.png');
 		public LIFE = 15;
 		public CREDITS = 10;
 		public SKILL_DESC = 'Cleric Skill Recover 10 points of life';
@@ -85,8 +86,8 @@ export namespace CharStrategy {
 
 	export class MageClassStrategy implements CharStrategy {
 		public NAME = 'Mage';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/mage.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/mage_background.png'].texture;
+		public PORTRAIT: Texture = getTexture('assets/mage.png');
+		public BACKGROUND: Texture = getTexture('assets/mage_background.png');
 		public LIFE = 10;
 		public CREDITS = 100;
 		public SKILL_DESC = 'Mage Skill Makes every Spinner roll slots  by the number of their locations';
@@ -97,10 +98,6 @@ export namespace CharStrategy {
 			return char;
 		}
 		public useSkill(target: any) {
-			// Mage Skill Makes:s
-			// The first Spinner roll 1 slot
-			// The second Spinner rolls 2 slots
-			// The third Spinner rolls 3 slots
 			for (let i = 0; i < target.reelArr.length - 1; i++) {
 				for (let j = 0; j < i + 1; j++) {
 					target.arrayRotateOne(target.reelArr[i].symbolsPosition, true);

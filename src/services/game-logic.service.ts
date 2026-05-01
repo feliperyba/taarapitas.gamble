@@ -1,11 +1,12 @@
-import { Component, OnInit, ViewChild, Injectable } from '@angular/core';
-import { Sprite, Application, Rectangle, Texture, Container, TextStyle, Text } from 'pixi.js';
-
+import { Injectable } from '@angular/core';
+import { Sprite, Application, Container, FillGradient, TextStyle, Text } from 'pixi.js';
 import { Reel } from '../model/reel';
 import { GUI } from '../model/gui-module/gui';
 import { PayTable } from '../model/pay-module/pay-table';
 import { Char } from '../model/char-module/char';
 import { Button } from '../model/gui-module/button';
+import { getTexture } from '../rendering/assets';
+import { DESIGN_HEIGHT, DESIGN_WIDTH, SCENE_LAYOUT } from '../rendering/viewport';
 
 export enum GameStates {
 	WAITING,
@@ -26,30 +27,24 @@ export class GameLogicService {
 	public msgContainer = new Container();
 
 	constructor() {
-		// Create Msg board to notify the user
 		this.msgContainer.visible = false;
-		this.msgContainer.width = 400;
-		this.msgContainer.height = 300;
-		this.msgContainer.x = window.screen.width / 3;
-		this.msgContainer.y = window.screen.height / 2;
-
-		// Add message background
+		this.msgContainer.x = DESIGN_WIDTH / 2 - SCENE_LAYOUT.overlay.width / 2;
+		this.msgContainer.y = DESIGN_HEIGHT / 2 - SCENE_LAYOUT.overlay.height / 2;
 	}
 
-	public gameLoop(app: Application, reels: Reel, gui: GUI, payTable: PayTable, char: Char) {
+	public gameLoop(app: Application, sceneRoot: Container, reels: Reel, gui: GUI, payTable: PayTable, char: Char) {
 		switch (this.state) {
 			case GameStates.WAITING:
 				break;
 			case GameStates.START:
 				if (char.credits-- > 0) {
-					// skill does not cost credits
 					if (!char.usingSkill) {
 						char.credits -= 1.0;
 					}
 					this.rollSlots(reels, char.usingSkill);
 				} else {
 					alert('You dont have gold coins to play');
-					GameStates.WAITING;
+					this.state = GameStates.WAITING;
 				}
 				break;
 			case GameStates.ROLL:
@@ -60,7 +55,7 @@ export class GameLogicService {
 			case GameStates.WIN:
 				break;
 			case GameStates.LOSE:
-				this.showEndGameMsg(char, app);
+				this.showEndGameMsg(char, sceneRoot);
 				break;
 		}
 	}
@@ -75,66 +70,68 @@ export class GameLogicService {
 		payTable.checkPayStrategies(reels, char);
 	}
 
-	public showEndGameMsg(char: Char, app: Application) {
+	public showEndGameMsg(char: Char, sceneRoot: Container) {
 		if (this.msgContainer.visible == false) {
+			this.msgContainer.removeChildren();
+			const grad = new FillGradient(0, 0, 0, 1);
+			grad.addColorStop(0, '#ffffff').addColorStop(1, '#ff0000');
 			const style = new TextStyle({
 				fontFamily: 'Primitive',
 				fontSize: 22,
-				fontStyle: '',
+				fontStyle: 'normal',
 				fontWeight: 'bold',
-				fill: [ '#fff', '#FF0000' ], // gradient
-				stroke: '#000',
-				strokeThickness: 5,
-				dropShadow: true,
-				dropShadowColor: '#B2240C',
-				dropShadowBlur: 2,
-				dropShadowAngle: Math.PI / 6,
-				dropShadowDistance: 3,
+				fill: grad,
+				stroke: { color: '#000', width: 5 },
+				dropShadow: {
+					color: '#B2240C',
+					blur: 2,
+					angle: Math.PI / 6,
+					distance: 3
+				},
 				wordWrap: true,
 				wordWrapWidth: 400
 			});
+			const bigGrad = new FillGradient(0, 0, 0, 1);
+			bigGrad.addColorStop(0, '#ffffff').addColorStop(1, '#ff0000');
 			const Bigstyle = new TextStyle({
 				fontFamily: 'Primitive',
 				fontSize: 36,
-				fontStyle: '',
+				fontStyle: 'normal',
 				fontWeight: 'bold',
-				fill: [ '#fff', '#FF0000' ], // gradient
-				stroke: '#000',
-				strokeThickness: 5,
-				dropShadow: true,
-				dropShadowColor: '#B2240C',
-				dropShadowBlur: 2,
-				dropShadowAngle: Math.PI / 6,
-				dropShadowDistance: 3,
+				fill: bigGrad,
+				stroke: { color: '#000', width: 5 },
+				dropShadow: {
+					color: '#B2240C',
+					blur: 2,
+					angle: Math.PI / 6,
+					distance: 3
+				},
 				wordWrap: true,
 				wordWrapWidth: 400
 			});
 
-			// Add background
-			const background = new Sprite(PIXI.Loader.shared.resources['assets/lose_msg.png'].texture);
-			background.x = this.msgContainer.width / 2 + 64;
-			background.y = this.msgContainer.height / 2 + 64;
+			const background = new Sprite(getTexture('assets/lose_msg.png'));
+			background.x = 0;
+			background.y = 0;
+			background.width = SCENE_LAYOUT.overlay.width;
+			background.height = SCENE_LAYOUT.overlay.height;
 
-			// Add End text
 			let string = 'You Lose!';
 			const loseText = new Text(string, Bigstyle);
-			loseText.x = background.x + background.width / 5 + 96;
-			loseText.y = background.y + background.width / 4;
+			loseText.x = SCENE_LAYOUT.overlay.width / 2 - loseText.width / 2;
+			loseText.y = 128;
 
-			string = '\n\n\n You have survived for ' + char.roundsAlive.toString() + ' rounds';
+			string = 'You have survived for ' + char.roundsAlive.toString() + ' rounds';
 			const text = new Text(string, style);
-			text.x = background.x + background.width / 5 + 16;
-			text.y = background.y + background.width / 4;
+			text.x = SCENE_LAYOUT.overlay.width / 2 - text.width / 2;
+			text.y = 238;
 
-			// Add End btn
-			const btnTexture = PIXI.Loader.shared.resources['assets/button.png'].texture;
-			const btnOverTexture = PIXI.Loader.shared.resources['assets/button-HOVER.png'].texture;
-			const btnPushTexture = PIXI.Loader.shared.resources['assets/button-PUSH.png'].texture;
+			const btnTexture = getTexture('assets/button.png');
+			const btnOverTexture = getTexture('assets/button-HOVER.png');
+			const btnPushTexture = getTexture('assets/button-PUSH.png');
 			const endBtn = new Button(96, 248, btnTexture, btnOverTexture, btnPushTexture, 'Restart', style);
-			endBtn.btnContainer.x = background.x + background.width / 2 - 54;
-			endBtn.btnContainer.y = background.y + background.width / 2 + 32;
-			endBtn.btnText.x += 8;
-			endBtn.btnText.y += 4;
+			endBtn.btnContainer.x = SCENE_LAYOUT.overlay.width / 2 - 124;
+			endBtn.btnContainer.y = 352;
 
 			endBtn.btnContainer.on('pointerdown', () => {
 				window.location.reload();
@@ -144,11 +141,11 @@ export class GameLogicService {
 			this.msgContainer.addChild(loseText);
 			this.msgContainer.addChild(text);
 			this.msgContainer.addChild(endBtn.btnContainer);
-			this.msgContainer.x = app.stage.x / 2;
-			this.msgContainer.y = app.stage.y / 2;
+			this.msgContainer.x = DESIGN_WIDTH / 2 - SCENE_LAYOUT.overlay.width / 2;
+			this.msgContainer.y = DESIGN_HEIGHT / 2 - SCENE_LAYOUT.overlay.height / 2;
 
 			this.msgContainer.visible = true;
-			app.stage.addChild(this.msgContainer);
+			sceneRoot.addChild(this.msgContainer);
 		}
 	}
 }

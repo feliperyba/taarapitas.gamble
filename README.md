@@ -1,5 +1,5 @@
 # Taarapita´s Gamble
-RogueLite Slot Machine game with Pixi.JS and Angular 6
+RogueLite Slot Machine game with Pixi.JS and Angular
 
  [You can play it online here!](https://feliperyba.github.io/taarapitas.gamble/)
 
@@ -9,15 +9,11 @@ Now since the mighty God has left, is upon to you to complete his task and Gambl
 Choose from 4 different characteres, wich one with your own unique abilities and test your mighty ( and luck ) agaist your enemies.
 
 # Installation
-## Prerequisites
-- [NodeJs](https://nodejs.org/)
 
 ```
 npm install
 
-// OR 
-
-yarn install
+npm run start
 ```
 
 # Game Design and Rules
@@ -44,22 +40,10 @@ Some characters makes use of the skill into then and other make it to the reel. 
 
 For test reasons, I´ve made a debug section where you can test specific land positions on each reel and also add credits to you character
 
-# Personal view
-
-  That was my first time trying to use Pixi.js as the renderer of my game. Luckly I decided early in be using Angular 6 and Typescript. This has helped a lot in maintain the code estructure. Tried to stick as much as possible into SOLID principles and make use of design patterns to achieve a nice code, even though it started to get big..
-  
-  Also was a very challenge situation to try and mix RogueLite elements into a slot game machine, but I'm satisfied where this concept has reached, for sure still plenty of room to play a little more in this subject. And I just really love roguelikes... Their mechanics can be abstract for every kind of game.
-  
-  Since I really do not know in depth Pixi.JS, the animations design and GUI design was the pain point during the development of this project. It took much trial and error until I was able to work good with the library, but after that, I really got used to it and I can see some future uses.
-
-
-# Authors
-- [Felipe Rybakovas](http://rybakovas.me)
+# Credits
 - Reel spin animation logic was taken from [PixiJS](https://pixijs.io/examples/#/demos/slots-demo.js)
 - The Symbols and Character are from [Justin Nichol](https://www.patreon.com/justinnichol). (Support the guy, he´s good)
 - The other Images are all pre owned and edited by me and you do not have the rights to :
   - Use
   - Edit
   - Redistribute
-  
-  PS : This game should be using the [Primitive Font](https://www.dafont.com/primitive.font), But I was not able to make it works on remote server. Local should apply correctly

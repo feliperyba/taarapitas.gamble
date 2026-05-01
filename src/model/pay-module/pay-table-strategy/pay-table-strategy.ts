@@ -1,5 +1,6 @@
 import { Reel, REEL_POSITIONS, REEL_VALUES } from '../../../model/reel';
 import { Texture } from 'pixi.js';
+import { getTexture } from '../../../rendering/assets';
 
 export enum COMBINATIONS {
 	CHERRY_TOP = 2000,
@@ -26,7 +27,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class CherryTopStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherryIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/CherryIcon.png');
 		public enumIndex = COMBINATIONS.CHERRY_TOP;
 		public combDesc = 'X3 ';
 		public desc = 'Top';
@@ -46,7 +47,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class CherryCenterStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherryIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/CherryIcon.png');
 		public enumIndex = COMBINATIONS.CHERRY_CENTER;
 		public combDesc = 'X3 ';
 		public desc = 'Center';
@@ -67,7 +68,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class CherryBottonStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherryIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/CherryIcon.png');
 		public enumIndex = COMBINATIONS.CHERRY_BOTTOM;
 		public combDesc = 'X3 ';
 		public desc = 'Botton';
@@ -87,14 +88,13 @@ export namespace PayTableStrategy {
 	}
 
 	export class SevenStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/7Icon.png'].texture;
+		public payIcon: Texture = getTexture('assets/7Icon.png');
 		public enumIndex = COMBINATIONS.SEVEN;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
 
 		public check(reel: Reel): COMBINATIONS {
 			let count = 0;
-			// take valid positions to iterate
 			const posValues = Object.keys(REEL_POSITIONS)
 				.map((k) => REEL_POSITIONS[k])
 				.filter((v) => typeof v === 'number') as number[];
@@ -119,14 +119,13 @@ export namespace PayTableStrategy {
 	}
 
 	export class SevenCherryStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherrySevenIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/CherrySevenIcon.png');
 		public enumIndex = COMBINATIONS.SEVEN_CHERRY;
 		public combDesc = 'Any';
 		public desc = 'Any';
 
 		public check(reel: Reel): COMBINATIONS {
 			let count = 0;
-			// take valid positions to iterate
 			const posValues = Object.keys(REEL_POSITIONS)
 				.map((k) => REEL_POSITIONS[k])
 				.filter((v) => typeof v === 'number') as number[];
@@ -154,14 +153,13 @@ export namespace PayTableStrategy {
 	}
 
 	export class X3BarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/X3BarIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/X3BarIcon.png');
 		public enumIndex = COMBINATIONS.X3BAR;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
 
 		public check(reel: Reel): COMBINATIONS {
 			let count = 0;
-			// take valid positions to iterate
 			const posValues = Object.keys(REEL_POSITIONS)
 				.map((k) => REEL_POSITIONS[k])
 				.filter((v) => typeof v === 'number') as number[];
@@ -186,14 +184,13 @@ export namespace PayTableStrategy {
 	}
 
 	export class X2BarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/X2BarIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/X2BarIcon.png');
 		public enumIndex = COMBINATIONS.X2BAR;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
 
 		public check(reel: Reel): COMBINATIONS {
 			let count = 0;
-			// take valid positions to iterate
 			const posValues = Object.keys(REEL_POSITIONS)
 				.map((k) => REEL_POSITIONS[k])
 				.filter((v) => typeof v === 'number') as number[];
@@ -218,14 +215,13 @@ export namespace PayTableStrategy {
 	}
 
 	export class BarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/BarIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/BarIcon.png');
 		public enumIndex = COMBINATIONS.BAR;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
 
 		public check(reel: Reel): COMBINATIONS {
 			let count = 0;
-			// take valid positions to iterate
 			const posValues = Object.keys(REEL_POSITIONS)
 				.map((k) => REEL_POSITIONS[k])
 				.filter((v) => typeof v === 'number') as number[];
@@ -250,14 +246,13 @@ export namespace PayTableStrategy {
 	}
 
 	export class AnyBarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['assets/AnyBarIcon.png'].texture;
+		public payIcon: Texture = getTexture('assets/AnyBarIcon.png');
 		public enumIndex = COMBINATIONS.ANY_BAR;
 		public combDesc = 'Any';
 		public desc = 'Any';
 
 		public check(reel: Reel): COMBINATIONS {
 			let count = 0;
-			// take valid positions to iterate
 			const posValues = Object.keys(REEL_POSITIONS)
 				.map((k) => REEL_POSITIONS[k])
 				.filter((v) => typeof v === 'number') as number[];

@@ -1,9 +1,6 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { Sprite, Application, Rectangle, Texture, Container, DisplayObject, Text } from 'pixi.js';
+import { Texture } from 'pixi.js';
 import { GameLogicService, GameStates } from '../../services/game-logic.service';
 import { CharStrategy } from '../../model/char-module/char-strategy/char-strategy';
-
-declare const PIXI: any;
 
 export class Char {
 	public charContext: CharStrategy.CharContext;
@@ -39,19 +36,17 @@ export class Char {
 
 			service.state = GameStates.WIN;
 		} else {
-			//take a hit
 			this.hit = true;
-			// If char is not using skill or protected, lose dmg
 			if (!this.usingSkill && !this.isProtected) {
 				this.life -= service.DEFAULT_DMG;
 			}
-			// if char is protected, lost protection
 			if (this.isProtected) {
 				this.isProtected = false;
 			}
 
 			if (this.life <= 0) {
-				return (service.state = GameStates.LOSE);
+				service.state = GameStates.LOSE;
+				return;
 			}
 
 			service.state = GameStates.WAITING;

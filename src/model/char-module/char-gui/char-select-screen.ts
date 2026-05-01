@@ -1,20 +1,14 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { Sprite, Application, Rectangle, Texture, TextStyle, Graphics, Container, DisplayObject, Text } from 'pixi.js';
-import { GameLogicService, GameStates } from '../../../services/game-logic.service';
-import { Char } from '../../char-module/char';
+import { Sprite, Application, Texture, FillGradient, TextStyle, Graphics, Container, Rectangle, Text, NineSliceSprite } from 'pixi.js';
 import { CharStrategy } from '../../char-module/char-strategy/char-strategy';
 import { AppComponent } from '../../../app/app.component';
-import { Reel } from '../../reel';
 import { Button } from '../../gui-module/button';
-
-declare var PIXI: any;
+import { getTexture } from '../../../rendering/assets';
+import { DESIGN_WIDTH, SCENE_LAYOUT } from '../../../rendering/viewport';
 
 export class CharSelectionScreen {
-	private CHAR_BOX_H = this.app.screen.height;
-	private CHAR_BOX_W = this.app.screen.width / 4;
-	private btnTexture = PIXI.Loader.shared.resources['assets/button.png'].texture;
-	private btnOverTexture = PIXI.Loader.shared.resources['assets/button-HOVER.png'].texture;
-	private btnPushTexture = PIXI.Loader.shared.resources['assets/button-PUSH.png'].texture;
+	private btnTexture: Texture;
+	private btnOverTexture: Texture;
+	private btnPushTexture: Texture;
 
 	private charClasses = [
 		new CharStrategy.WarriorClassStrategy(),
@@ -26,65 +20,110 @@ export class CharSelectionScreen {
 	public selectCharContainer = new Container();
 
 	constructor(private app: Application, private appComponent: AppComponent) {
+		this.btnTexture = getTexture('assets/button.png');
+		this.btnOverTexture = getTexture('assets/button-HOVER.png');
+		this.btnPushTexture = getTexture('assets/button-PUSH.png');
+
 		let i = 0;
+		const titleGrad = new FillGradient(0, 0, 0, 1);
+		titleGrad.addColorStop(0, '#753213').addColorStop(1, '#FAE888');
 		const Titlestyle = new TextStyle({
 			fontFamily: 'Primitive',
-			fontSize: 32,
-			fontStyle: '',
+			fontSize: 58,
+			fontStyle: 'normal',
 			fontWeight: 'bold',
-			fill: [ '#753213', '#FAE888' ], // gradient
-			stroke: '#000',
-			strokeThickness: 2,
-			dropShadow: true,
-			dropShadowColor: '#C86913',
-			dropShadowBlur: 0,
-			dropShadowAngle: Math.PI / 6,
-			dropShadowDistance: 0,
+			fill: titleGrad,
+			stroke: { color: '#000', width: 3 },
+			dropShadow: {
+				color: '#C86913',
+				blur: 0,
+				angle: Math.PI / 6,
+				distance: 0
+			},
 			wordWrap: true,
-			wordWrapWidth: 400
+			wordWrapWidth: SCENE_LAYOUT.charSelect.cardWidth - SCENE_LAYOUT.charSelect.contentInset * 2,
+			align: 'center'
 		});
 
+		const descGrad = new FillGradient(0, 0, 0, 1);
+		descGrad.addColorStop(0, '#ffffff').addColorStop(1, '#cccccc');
 		const descStyle = new TextStyle({
 			fontFamily: 'Primitive',
-			fontSize: 18,
-			fontStyle: '',
+			fontSize: 30,
+			fontStyle: 'normal',
 			fontWeight: 'bold',
-			fill: [ '#fff', '#ccc' ], // gradient
-			stroke: '#000',
-			strokeThickness: 3,
-			dropShadow: true,
-			dropShadowColor: '#C86913',
-			dropShadowBlur: 0,
-			dropShadowAngle: Math.PI / 6,
-			dropShadowDistance: 0,
+			fill: descGrad,
+			stroke: { color: '#000', width: 3 },
+			dropShadow: {
+				color: '#C86913',
+				blur: 0,
+				angle: Math.PI / 6,
+				distance: 0
+			},
 			wordWrap: true,
-			wordWrapWidth: this.CHAR_BOX_W - 18
+			wordWrapWidth: SCENE_LAYOUT.charSelect.cardWidth - SCENE_LAYOUT.charSelect.contentInset * 2,
+			align: 'center'
 		});
 
+		const nameGrad = new FillGradient(0, 0, 0, 1);
+		nameGrad.addColorStop(0, '#ffffff').addColorStop(1, '#cccccc');
 		const style = new TextStyle({
 			fontFamily: 'Primitive',
-			fontSize: 22,
-			fontStyle: '',
+			fontSize: 42,
+			fontStyle: 'normal',
 			fontWeight: 'bold',
-			fill: [ '#fff', '#ccc' ], // gradient
-			stroke: '#000',
-			strokeThickness: 5,
-			dropShadow: true,
-			dropShadowColor: '#C86913',
-			dropShadowBlur: 0,
-			dropShadowAngle: Math.PI / 6,
-			dropShadowDistance: 0,
+			fill: nameGrad,
+			stroke: { color: '#000', width: 5 },
+			dropShadow: {
+				color: '#C86913',
+				blur: 0,
+				angle: Math.PI / 6,
+				distance: 0
+			},
 			wordWrap: true,
-			wordWrapWidth: 400
+			wordWrapWidth: 120,
+			align: 'center'
+		});
+		const buttonStyle = new TextStyle({
+			fontFamily: 'Primitive',
+			fontSize: 44,
+			fontStyle: 'normal',
+			fontWeight: 'bold',
+			fill: nameGrad,
+			stroke: { color: '#000', width: 6 },
+			dropShadow: {
+				color: '#C86913',
+				blur: 0,
+				angle: Math.PI / 6,
+				distance: 0
+			},
+			wordWrap: true,
+			wordWrapWidth: SCENE_LAYOUT.charSelect.selectButtonWidth - 40,
+			align: 'center'
 		});
 
-		// Create Class options
-		for (let char of this.charClasses) {
+		for (const char of this.charClasses) {
+			const cardLayout = SCENE_LAYOUT.charSelect;
+			const columnStep = SCENE_LAYOUT.charSelect.cardWidth + SCENE_LAYOUT.charSelect.columnGap;
+			const totalWidth = this.charClasses.length * SCENE_LAYOUT.charSelect.cardWidth +
+				(this.charClasses.length - 1) * SCENE_LAYOUT.charSelect.columnGap;
+			const cardX = (DESIGN_WIDTH - totalWidth) / 2 + i * columnStep;
+			const contentCenterX = cardLayout.cardWidth / 2;
 			const charRegionGraphics = new Graphics();
-			const classBackground = new Sprite(char.BACKGROUND);
+			const classBackground = new NineSliceSprite({
+				texture: char.BACKGROUND,
+				width: cardLayout.cardWidth,
+				height: cardLayout.cardHeight,
+				leftWidth: 48,
+				topHeight: 72,
+				rightWidth: 48,
+				bottomHeight: 72
+			});
 			const classPortrait = new Sprite(char.PORTRAIT);
-			const lifeIcon = new Sprite(PIXI.Loader.shared.resources['assets/life_icon.png'].texture);
-			const creditIcon = new Sprite(PIXI.Loader.shared.resources['assets/credit_icon.png'].texture);
+			const statPanel = new Graphics();
+			const descPanel = new Graphics();
+			const lifeIcon = new Sprite(getTexture('assets/life_icon.png'));
+			const creditIcon = new Sprite(getTexture('assets/credit_icon.png'));
 
 			const classNameText: Text = new Text(char.NAME, Titlestyle);
 			const creditsText: Text = new Text(char.CREDITS.toString(), style);
@@ -92,87 +131,73 @@ export class CharSelectionScreen {
 
 			const SkillText: Text = new Text(char.SKILL_DESC, descStyle);
 
-			charRegionGraphics.y = this.app.screen.height / 2;
-			charRegionGraphics.x = 32;
-
-			if (i > 0) {
-				// put a little margin between then
-				charRegionGraphics.x = this.CHAR_BOX_W * i + 32;
-			}
-
-			// plot class background
-			// scale to fit container
-			classBackground.y = charRegionGraphics.height / 2 - 292;
-			if (i > 0) {
-				classBackground.x = charRegionGraphics.width / 2 - 26;
-			} else {
-				classBackground.x = charRegionGraphics.width / 2 - 24;
-			}
-			classBackground.scale.x = classBackground.scale.y = Math.min(
-				190 / classBackground.width,
-				1000 / classBackground.height
+			charRegionGraphics.x = cardX;
+			charRegionGraphics.y = SCENE_LAYOUT.charSelect.top;
+			charRegionGraphics.hitArea = new Rectangle(
+				0,
+				0,
+				cardLayout.cardWidth,
+				cardLayout.cardHeight
 			);
 
-			// plot class portrait
-			// scale to fit container
-			classPortrait.y = charRegionGraphics.height / 2 - 260;
-			classPortrait.x = charRegionGraphics.width / 2 - 32;
 			classPortrait.scale.x = classPortrait.scale.y = Math.min(
-				200 / classPortrait.width,
-				200 / classPortrait.height
+				cardLayout.portraitSize / classPortrait.width,
+				cardLayout.portraitSize / classPortrait.height
 			);
+			classPortrait.x = contentCenterX - classPortrait.width / 2;
+			classPortrait.y = cardLayout.portraitY;
 
-			// Plot Class Name
-			classNameText.y = charRegionGraphics.height / 2 - 75;
-			classNameText.x = charRegionGraphics.width / 2;
+			classNameText.anchor.set(0.5);
+			classNameText.x = contentCenterX;
+			classNameText.y = cardLayout.titleY;
 
-			if (i > 0) {
-				switch (i) {
-					case 1:
-						classNameText.x -= 16;
-						break;
-					case 2:
-						classNameText.x += 20;
-						break;
-					case 3:
-						classNameText.x += 20;
-						break;
-				}
-			}
+			const panelX = cardLayout.contentInset;
+			const panelWidth = cardLayout.cardWidth - cardLayout.contentInset * 2;
+			const statCenterY = cardLayout.statPanelY + cardLayout.statPanelHeight / 2;
+			const lifeCenterX = contentCenterX - 96;
+			const creditCenterX = contentCenterX + 96;
 
-			// Plot Class Life
-			lifeIcon.y = charRegionGraphics.height / 2 - 16;
-			lifeIcon.x = charRegionGraphics.width / 2 - 16;
+			statPanel.roundRect(panelX, cardLayout.statPanelY, panelWidth, cardLayout.statPanelHeight, 6)
+				.fill({ color: 0x160905, alpha: 0.34 })
+				.stroke({ color: 0xd28a34, alpha: 0.16, width: 2 });
+			lifeIcon.width = cardLayout.statIconSize;
+			lifeIcon.height = cardLayout.statIconSize;
+			lifeIcon.anchor.set(0.5);
+			lifeIcon.x = lifeCenterX;
+			lifeIcon.y = statCenterY;
 
-			lifeText.y = charRegionGraphics.height / 2;
-			lifeText.x = charRegionGraphics.width / 2;
+			lifeText.anchor.set(0.5);
+			lifeText.x = lifeIcon.x;
+			lifeText.y = lifeIcon.y + 4;
 
-			// Plot Class Credits
-			creditIcon.y = charRegionGraphics.height / 2 - 16;
-			creditIcon.x = charRegionGraphics.width / 2 + 84;
+			creditIcon.width = cardLayout.statIconSize;
+			creditIcon.height = cardLayout.statIconSize;
+			creditIcon.anchor.set(0.5);
+			creditIcon.x = creditCenterX;
+			creditIcon.y = statCenterY;
 
-			creditsText.y = charRegionGraphics.height / 2;
-			creditsText.x = charRegionGraphics.width / 2 + 100;
-			if (i == 2) {
-				creditsText.x = charRegionGraphics.width / 2 + 92;
-			}
+			creditsText.anchor.set(0.5);
+			creditsText.x = creditIcon.x;
+			creditsText.y = creditIcon.y + 4;
 
-			// Plot Class Skill
-			SkillText.y = charRegionGraphics.height / 2 + 80;
-			SkillText.x = -16;
+			descPanel.roundRect(panelX, cardLayout.descPanelY, panelWidth, cardLayout.descPanelHeight, 6)
+				.fill({ color: 0x160905, alpha: 0.26 })
+				.stroke({ color: 0xd28a34, alpha: 0.14, width: 2 });
+			SkillText.anchor.set(0.5);
+			SkillText.x = contentCenterX;
+			SkillText.y = cardLayout.descPanelY + cardLayout.descPanelHeight / 2;
 
-			// create select btn
 			const btnSelect = new Button(
-				172,
-				172,
+				cardLayout.selectButtonHeight,
+				cardLayout.selectButtonWidth,
 				this.btnTexture,
 				this.btnOverTexture,
 				this.btnPushTexture,
 				'Select',
-				style
+				buttonStyle
 			);
 
-			btnSelect.btnContainer.addListener('pointerdown', () => {
+			btnSelect.btnContainer.on('pointerdown', () => {
 				const target = char.TARGET_TYPE == 'Char' ? null : this.appComponent.reel;
 				const context = new CharStrategy.CharContext(char, target);
 				this.appComponent.char = context.createCharClass();
@@ -181,15 +206,15 @@ export class CharSelectionScreen {
 				if (this.appComponent.char.charContext.target == null) {
 					this.appComponent.char.charContext.target = this.appComponent.char;
 				}
-				// Setup game
 				this.appComponent.setup();
 			});
 
-			btnSelect.btnContainer.x = SkillText.x + 48;
-			btnSelect.btnContainer.y = SkillText.y + 172;
+			btnSelect.btnContainer.x = contentCenterX - cardLayout.selectButtonWidth / 2;
+			btnSelect.btnContainer.y = cardLayout.cardHeight - cardLayout.selectButtonHeight - cardLayout.selectButtonBottom;
 
-			// Add graphics to the container
 			charRegionGraphics.addChild(classBackground);
+			charRegionGraphics.addChild(statPanel);
+			charRegionGraphics.addChild(descPanel);
 			charRegionGraphics.addChild(classPortrait);
 			charRegionGraphics.addChild(classNameText);
 			charRegionGraphics.addChild(lifeIcon);
@@ -199,8 +224,8 @@ export class CharSelectionScreen {
 			charRegionGraphics.addChild(SkillText);
 			charRegionGraphics.addChild(btnSelect.btnContainer);
 
-			charRegionGraphics.interactive = true;
-			charRegionGraphics.buttonMode = true;
+			charRegionGraphics.eventMode = 'static';
+			charRegionGraphics.cursor = 'pointer';
 
 			this.selectCharContainer.addChild(charRegionGraphics);
 			i++;

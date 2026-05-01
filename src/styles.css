@@ -1,1 +1,13 @@
 /* You can add global styles to this file, and also import other style files */
+
+@font-face {
+	font-family: 'Primitive';
+	src: url('assets/Primitive.ttf') format('truetype');
+	font-weight: normal;
+	font-style: normal;
+	font-display: block;
+}
+
+* {
+	font-family: 'Primitive', sans-serif;
+}

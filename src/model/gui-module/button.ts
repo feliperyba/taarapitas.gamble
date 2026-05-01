@@ -1,12 +1,10 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { Sprite, Application, Rectangle, Texture, TextStyle, Graphics, Container, DisplayObject, Text } from 'pixi.js';
-
-declare var PIXI: any;
+import { NineSliceSprite, Rectangle, Texture, TextStyle, Container, Text } from 'pixi.js';
 
 export class Button {
 	public btnContainer = new Container();
-	public Btn: Sprite;
+	public Btn: NineSliceSprite;
 	public btnText: Text;
+	private disabled = false;
 
 	constructor(
 		private containerHeight: number,
@@ -17,55 +15,84 @@ export class Button {
 		public text: string,
 		private style: TextStyle
 	) {
-		this.btnContainer.width = containerWidth;
-		this.btnContainer.height = containerHeight;
+		this.btnContainer.hitArea = new Rectangle(0, 0, containerWidth, containerHeight);
 
-		this.Btn = new Sprite(textureBtn);
-		this.Btn.scale.x = this.Btn.scale.y = Math.min(
-			containerWidth / this.Btn.width,
-			containerHeight / this.Btn.height
-		);
-		this.Btn.x = this.btnContainer.width / 2 - this.Btn.width / 4 - 8;
-		this.Btn.y = this.btnContainer.height / 2 - this.Btn.height / 4;
+		this.Btn = this.createButtonSprite(textureBtn);
 
 		this.btnContainer
-			.on('mouseover', () => {
+			.on('pointerover', () => {
 				this.onButtonOver(this.Btn);
 			})
-			.on('mouseout', () => {
+			.on('pointerout', () => {
 				this.onButtonOut(this.Btn);
 			})
-			.on('mousedown', () => {
+			.on('pointerdown', () => {
 				this.onButtonDown(this.Btn);
 			})
-			.on('mouseup', () => {
+			.on('pointerup', () => {
+				this.onButtonUp(this.Btn);
+			})
+			.on('pointerupoutside', () => {
 				this.onButtonUp(this.Btn);
 			});
 
 		this.btnText = new Text(text, style);
-		this.btnText.x = this.btnContainer.width / 2;
-		this.btnText.y = this.btnContainer.height / 2;
+		this.btnText.anchor.set(0.5);
+		this.btnText.x = this.containerWidth / 2;
+		this.btnText.y = this.containerHeight * 0.45;
 
 		this.btnContainer.addChild(this.Btn);
 		this.btnContainer.addChild(this.btnText);
 
-		this.btnContainer.interactive = true;
-		this.btnContainer.buttonMode = true;
+		this.btnContainer.eventMode = 'static';
+		this.btnContainer.cursor = 'pointer';
 	}
 
-	private onButtonDown(Btn: Sprite) {
+	private createButtonSprite(texture: Texture): NineSliceSprite {
+		return new NineSliceSprite({
+			texture,
+			width: this.containerWidth,
+			height: this.containerHeight,
+			leftWidth: 94,
+			topHeight: 42,
+			rightWidth: 94,
+			bottomHeight: 76
+		});
+	}
+
+	private onButtonDown(Btn: NineSliceSprite) {
+		if (this.disabled) {
+			return;
+		}
 		Btn.texture = this.textureBtnDown;
 	}
 
-	private onButtonUp(Btn: Sprite) {
+	private onButtonUp(Btn: NineSliceSprite) {
+		if (this.disabled) {
+			return;
+		}
 		Btn.texture = this.textureBtn;
 	}
 
-	private onButtonOver(Btn: Sprite) {
+	private onButtonOver(Btn: NineSliceSprite) {
+		if (this.disabled) {
+			return;
+		}
 		Btn.texture = this.textureBtnOver;
 	}
 
-	private onButtonOut(Btn: Sprite) {
+	private onButtonOut(Btn: NineSliceSprite) {
+		if (this.disabled) {
+			return;
+		}
 		Btn.texture = this.textureBtn;
+	}
+
+	public setDisabled(disabled: boolean) {
+		this.disabled = disabled;
+		this.btnContainer.alpha = disabled ? 0.62 : 1;
+		this.btnContainer.cursor = disabled ? 'default' : 'pointer';
+		this.Btn.texture = disabled ? this.textureBtnDown : this.textureBtn;
+		this.btnText.alpha = disabled ? 0.86 : 1;
 	}
 }

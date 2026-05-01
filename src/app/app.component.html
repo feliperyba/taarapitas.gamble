@@ -1,10 +1,6 @@
-<div class="container" style="background-color: black">
-  <div class="row">
-    <div class="col-sm-9">
-      <div #pixiContainer></div>
-    </div>
-    <div class="col-sm-3" style="position: relative;">
-      <app-debug></app-debug>
-    </div>
-  </div>
+<div class="game-shell">
+  <div #pixiContainer class="pixi-host"></div>
+  <aside class="debug-panel">
+    <app-debug></app-debug>
+  </aside>
 </div>

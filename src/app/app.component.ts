@@ -1,6 +1,6 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { Sprite, Application, TextStyle, Rectangle, Texture, Container, DisplayObject, Text } from 'pixi.js';
+import { Application, Container, FillGradient, TextStyle } from 'pixi.js';
 import { GameLogicService } from '../services/game-logic.service';
 import { DebuggerService } from '../services/debugger.service';
 import { Reel } from '../model/reel';
@@ -9,21 +9,23 @@ import { PayTable } from '../model/pay-module/pay-table';
 import { Char } from '../model/char-module/char';
 import { CharSelectionScreen } from '../model/char-module/char-gui/char-select-screen';
 import { PayTableGUI } from '../model/pay-module/pay-table-gui/pay-table-gui';
-
-declare var PIXI: any;
+import { preloadAssets } from '../rendering/assets';
+import { DESIGN_HEIGHT, DESIGN_WIDTH, ViewportState, computeViewport, getRendererDpi } from '../rendering/viewport';
 
 @Component({
+	standalone: false,
 	selector: 'app-root',
 	templateUrl: './app.component.html',
 	styleUrls: [ './app.component.css' ]
 })
-export class AppComponent implements OnInit {
-	@ViewChild('pixiContainer') pixiContainer;
+export class AppComponent implements AfterViewInit, OnDestroy {
+	@ViewChild('pixiContainer') pixiContainer!: ElementRef<HTMLDivElement>;
 	public debugValueSubscription: Subscription;
 
-	public app: Application = new Application(800, 600, {
-		backgroundColor: 0x0000
-	});
+	public app: Application = new Application();
+	public sceneRoot: Container = new Container();
+	public viewport: ViewportState = computeViewport(DESIGN_WIDTH, DESIGN_HEIGHT);
+	private resizeObserver?: ResizeObserver;
 
 	public reel: Reel;
 	public gui: GUI;
@@ -31,22 +33,26 @@ export class AppComponent implements OnInit {
 	public char: Char;
 	public charSelectionScreen: CharSelectionScreen;
 
-	public appstyle = new TextStyle({
-		fontFamily: 'Primitive',
-		fontSize: 36,
-		fontStyle: '',
-		fontWeight: 'bold',
-		fill: [ '#ffffff', '#a99047' ], // gradient
-		stroke: '#000',
-		strokeThickness: 2,
-		dropShadow: true,
-		dropShadowColor: '#f2ebb5',
-		dropShadowBlur: 0,
-		dropShadowAngle: Math.PI / 6,
-		dropShadowDistance: 0,
-		wordWrap: true,
-		wordWrapWidth: 400
-	});
+	public appstyle = (() => {
+		const g = new FillGradient(0, 0, 0, 1);
+		g.addColorStop(0, '#ffffff').addColorStop(1, '#a99047');
+		return new TextStyle({
+			fontFamily: 'Primitive',
+			fontSize: 36,
+			fontStyle: 'normal',
+			fontWeight: 'bold',
+			fill: g,
+			stroke: { color: '#000', width: 2 },
+			dropShadow: {
+				color: '#f2ebb5',
+				blur: 0,
+				angle: Math.PI / 6,
+				distance: 0
+			},
+			wordWrap: true,
+			wordWrapWidth: 400
+		});
+	})();
 
 	constructor(private _gameLogicService: GameLogicService, private _debugService: DebuggerService) {
 		this.debugValueSubscription = this._debugService.debugConfigValue$.subscribe((value) => {
@@ -59,64 +65,31 @@ export class AppComponent implements OnInit {
 		});
 	}
 
-	ngOnInit() {
-		this.pixiContainer.nativeElement.appendChild(this.app.view);
-		this.app.renderer.view.style.display = 'block';
-		this.app.renderer.view.style.position = 'absolute';
-		this.app.renderer.view.style.display = 'block';
-		this.app.renderer.autoResize = true;
+	async ngAfterViewInit() {
+		await document.fonts.load('bold 36px Primitive');
 
-		PIXI.Loader.shared
-			.add([
-				'assets/3xBAR.png',
-				'assets/BAR.png',
-				'assets/2xBAR.png',
-				'assets/7.png',
-				'assets/Cherry.png',
-				'assets/berserker.png',
-				'assets/berserker_background.png',
-				'assets/warrior.png',
-				'assets/warrior_background.png',
-				'assets/cleric.png',
-				'assets/cleric_background.png',
-				'assets/mage.png',
-				'assets/mage_background.png',
-				'assets/life_icon.png',
-				'assets/credit_icon.png',
-				'assets/button.png',
-				'assets/button-HOVER.png',
-				'assets/button-PUSH.png',
-				'assets/background_frame.png',
-				'assets/paytable_frame.png',
-				'assets/paytable_frame_highlight.png',
-				'assets/char_frame.png',
-				'assets/life_bar.png',
-				'assets/potion_icon.png',
-				'assets/skill_bar_full.png',
-				'assets/skill_bar_empty.png',
-				'assets/CherryIcon.png',
-				'assets/7Icon.png',
-				'assets/CherrySevenIcon.png',
-				'assets/X3BarIcon.png',
-				'assets/X2BarIcon.png',
-				'assets/BarIcon.png',
-				'assets/AnyBarIcon.png',
-				'assets/coin.png',
-				'assets/coin_reward.png',
-				'assets/xp_reward.png',
-				'assets/info.png',
-				'assets/info-HOVER.png',
-				'assets/info-PUSH.png',
-				'assets/protected_icon.png',
-				'assets/hit.png',
-				'assets/lose_msg.png'
-			])
-			.on('progress', this.loadProgressHandler)
-			.load(this.loadCharSelect.bind(this));
-	}
+		await this.app.init({
+			width: DESIGN_WIDTH,
+			height: DESIGN_HEIGHT,
+			background: 0x0000,
+			resolution: getRendererDpi(),
+			autoDensity: true
+		});
 
-	public loadProgressHandler(loader, resource) {
-		console.log(`loaded ${resource.url}. Loading is ${loader.progress}% complete. `);
+		this.pixiContainer.nativeElement.appendChild(this.app.canvas);
+		this.app.canvas.style.display = 'block';
+		this.app.canvas.style.position = 'absolute';
+		this.app.canvas.style.inset = '0';
+
+		this.app.stage.addChild(this.sceneRoot);
+		this.setupResizeHandling();
+		this.resizeRendererToHost();
+
+		await preloadAssets((pct) => {
+			console.log(`Loading assets... ${pct}% complete.`);
+		});
+
+		this.loadCharSelect();
 	}
 
 	public loadCharSelect() {
@@ -124,20 +97,45 @@ export class AppComponent implements OnInit {
 		this.payTable = new PayTable(this.app, this._gameLogicService, this.reel);
 
 		this.charSelectionScreen = new CharSelectionScreen(this.app, this);
-		this.app.stage.addChild(this.charSelectionScreen.selectCharContainer);
+		this.sceneRoot.addChild(this.charSelectionScreen.selectCharContainer);
 	}
 
 	public setup() {
-		//after select, start game loop
 		this.charSelectionScreen.selectCharContainer.visible = false;
 
-		this.app.stage.addChild(this.reel.reelContainer);
-		this.gui = new GUI(this.app, this.reel, this.char, this.payTable, this.appstyle, this._gameLogicService);
-		// Set PayTable container
-		const payTableGUI = new PayTableGUI(this.app, this.payTable, this._gameLogicService);
+		this.gui = new GUI(this.app, this.sceneRoot, this.reel, this.char, this.payTable, this.appstyle, this._gameLogicService);
+		new PayTableGUI(this.app, this.gui.leftRailLayer, this.payTable, this._gameLogicService);
 
 		this.app.ticker.add(() => {
-			this._gameLogicService.gameLoop(this.app, this.reel, this.gui, this.payTable, this.char);
+			this._gameLogicService.gameLoop(this.app, this.sceneRoot, this.reel, this.gui, this.payTable, this.char);
 		});
 	}
+
+	ngOnDestroy() {
+		this.resizeObserver?.disconnect();
+		window.removeEventListener('resize', this.resizeRendererToHost);
+		this.debugValueSubscription.unsubscribe();
+		this.app.destroy();
+	}
+
+	private setupResizeHandling() {
+		this.resizeObserver = new ResizeObserver(() => {
+			this.resizeRendererToHost();
+		});
+		this.resizeObserver.observe(this.pixiContainer.nativeElement);
+		window.addEventListener('resize', this.resizeRendererToHost);
+	}
+
+	private resizeRendererToHost = () => {
+		const host = this.pixiContainer.nativeElement;
+		const width = host.clientWidth || window.innerWidth || DESIGN_WIDTH;
+		const height = host.clientHeight || window.innerHeight || DESIGN_HEIGHT;
+
+		this.viewport = computeViewport(width, height);
+		this.app.renderer.resolution = getRendererDpi();
+		this.app.renderer.resize(this.viewport.actualWidth, this.viewport.actualHeight);
+
+		this.sceneRoot.scale.set(this.viewport.scale);
+		this.sceneRoot.position.set(this.viewport.offsetX, this.viewport.offsetY);
+	};
 }

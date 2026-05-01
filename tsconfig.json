@@ -1,26 +1,36 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "outDir": "./dist/out-tsc",
+    "strict": false,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "sourceMap": true,
     "declaration": false,
-    "moduleResolution": "node",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "es5",
-    "typeRoots": ["node_modules/@types"],
-    "lib": ["es2017", "dom"]
+    "outDir": "./dist/out-tsc",
+    "lib": ["es2022", "dom"]
   },
-  "paths": {
-    "@angular/common": ["../node_modules/@angular/common"],
-    "@angular/compiler": ["../node_modules/@angular/compiler"],
-    "@angular/core": ["../node_modules/@angular/core"],
-    "@angular/forms": ["../node_modules/@angular/forms"],
-    "@angular/platform-browser": ["../node_modules/@angular/platform-browser"],
-    "@angular/platform-browser-dynamic": [
-      "../node_modules/@angular/platform-browser-dynamic"
-    ],
-    "@angular/router": ["../node_modules/@angular/router"],
-    "@angular/http": ["../node_modules/@angular/http"]
-  }
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": false
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
 }

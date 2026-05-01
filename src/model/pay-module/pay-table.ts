@@ -1,12 +1,9 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { Sprite, Application, Rectangle, Texture, Container, DisplayObject, Text } from 'pixi.js';
+import { Application } from 'pixi.js';
 import { GameLogicService, GameStates } from '../../services/game-logic.service';
 import { Reel } from '../reel';
 import { Char } from '../char-module/char';
 import { PayTableStrategy } from '../../model/pay-module/pay-table-strategy/pay-table-strategy';
 import { PayTableGUI } from '../../model/pay-module/pay-table-gui/pay-table-gui';
-
-declare const PIXI: any;
 
 export enum COMBINATIONS {
 	CHERRY_TOP = 2000,
