@@ -26,7 +26,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class CherryTopStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/CherryIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherryIcon.png'].texture;
 		public enumIndex = COMBINATIONS.CHERRY_TOP;
 		public combDesc = 'X3 ';
 		public desc = 'Top';
@@ -46,7 +46,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class CherryCenterStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/CherryIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherryIcon.png'].texture;
 		public enumIndex = COMBINATIONS.CHERRY_CENTER;
 		public combDesc = 'X3 ';
 		public desc = 'Center';
@@ -67,7 +67,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class CherryBottonStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/CherryIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherryIcon.png'].texture;
 		public enumIndex = COMBINATIONS.CHERRY_BOTTOM;
 		public combDesc = 'X3 ';
 		public desc = 'Botton';
@@ -87,7 +87,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class SevenStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/7Icon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/7Icon.png'].texture;
 		public enumIndex = COMBINATIONS.SEVEN;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
@@ -119,7 +119,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class SevenCherryStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/CherrySevenIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/CherrySevenIcon.png'].texture;
 		public enumIndex = COMBINATIONS.SEVEN_CHERRY;
 		public combDesc = 'Any';
 		public desc = 'Any';
@@ -154,7 +154,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class X3BarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/X3BarIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/X3BarIcon.png'].texture;
 		public enumIndex = COMBINATIONS.X3BAR;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
@@ -186,7 +186,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class X2BarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/X2BarIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/X2BarIcon.png'].texture;
 		public enumIndex = COMBINATIONS.X2BAR;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
@@ -218,7 +218,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class BarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/BarIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/BarIcon.png'].texture;
 		public enumIndex = COMBINATIONS.BAR;
 		public combDesc = 'X3 ';
 		public desc = 'Any';
@@ -250,7 +250,7 @@ export namespace PayTableStrategy {
 	}
 
 	export class AnyBarStrategy implements PayStrategy {
-		public payIcon: Texture = PIXI.Loader.shared.resources['../assets/AnyBarIcon.png'].texture;
+		public payIcon: Texture = PIXI.Loader.shared.resources['assets/AnyBarIcon.png'].texture;
 		public enumIndex = COMBINATIONS.ANY_BAR;
 		public combDesc = 'Any';
 		public desc = 'Any';

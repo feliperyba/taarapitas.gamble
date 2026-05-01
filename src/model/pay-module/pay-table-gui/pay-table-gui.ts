@@ -56,9 +56,9 @@ export class PayTableGUI {
 		wordWrapWidth: 400
 	});
 
-	private FRAME: Texture = PIXI.Loader.shared.resources['../assets/paytable_frame.png'].texture;
+	private FRAME: Texture = PIXI.Loader.shared.resources['assets/paytable_frame.png'].texture;
 	private FRAME_HIGHLIGHT: Sprite = new Sprite(
-		PIXI.Loader.shared.resources['../assets/paytable_frame_highlight.png'].texture
+		PIXI.Loader.shared.resources['assets/paytable_frame_highlight.png'].texture
 	);
 
 	public payTableContainer = new Container();
@@ -124,7 +124,7 @@ export class PayTableGUI {
 			payValue.y = positionY + 12;
 			payValue.x = payOptionRegion.width / 2 + 112;
 
-			const coin: Sprite = new Sprite(PIXI.Loader.shared.resources['../assets/coin_reward.png'].texture);
+			const coin: Sprite = new Sprite(PIXI.Loader.shared.resources['assets/coin_reward.png'].texture);
 			coin.y = positionY + 10;
 			coin.x = payOptionRegion.width / 2 + 172;
 			coin.scale.x = coin.scale.y = Math.min(32 / coin.width, 32 / coin.height);

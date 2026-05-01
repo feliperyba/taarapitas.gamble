@@ -41,7 +41,7 @@ export class GUI {
 
 	public GUISetup() {
 		// Add frame background
-		this.app.stage.addChild(new Sprite(PIXI.Loader.shared.resources['../assets/background_frame.png'].texture));
+		this.app.stage.addChild(new Sprite(PIXI.Loader.shared.resources['assets/background_frame.png'].texture));
 
 		// Set Reel Container
 		var margin = (this.app.screen.height - this.reel.SYMBOL_SIZE * this.reel.SLOT_NUMBER) / 2;
@@ -66,9 +66,9 @@ export class GUI {
 		);
 
 		// Add play btn
-		const btnTexture = PIXI.Loader.shared.resources['../assets/button.png'].texture;
-		const btnOverTexture = PIXI.Loader.shared.resources['../assets/button-HOVER.png'].texture;
-		const btnPushTexture = PIXI.Loader.shared.resources['../assets/button-PUSH.png'].texture;
+		const btnTexture = PIXI.Loader.shared.resources['assets/button.png'].texture;
+		const btnOverTexture = PIXI.Loader.shared.resources['assets/button-HOVER.png'].texture;
+		const btnPushTexture = PIXI.Loader.shared.resources['assets/button-PUSH.png'].texture;
 		const playBtn = new Button(96, 248, btnTexture, btnOverTexture, btnPushTexture, 'Fight', this.DEFAULT_STYLE);
 
 		playBtn.btnContainer.width += 32;

@@ -23,8 +23,8 @@ export namespace CharStrategy {
 
 	export class WarriorClassStrategy implements CharStrategy {
 		public NAME = 'Warrior';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['../assets/warrior.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['../assets/warrior_background.png'].texture;
+		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/warrior.png'].texture;
+		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/warrior_background.png'].texture;
 		public LIFE = 25;
 		public CREDITS = 35;
 		public SKILL_DESC = 'Warrior Skill creates a shield protector that last one hit';
@@ -41,8 +41,8 @@ export namespace CharStrategy {
 
 	export class BerserkerClassStrategy implements CharStrategy {
 		public NAME = 'Berserker';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['../assets/berserker.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['../assets/berserker_background.png'].texture;
+		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/berserker.png'].texture;
+		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/berserker_background.png'].texture;
 		public LIFE = 30;
 		public CREDITS = 20;
 		public SKILL_DESC = 'Berserker Skill Makes every Spinner roll 2 slots';
@@ -64,8 +64,8 @@ export namespace CharStrategy {
 
 	export class ClericClassStrategy implements CharStrategy {
 		public NAME = 'Cleric';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['../assets/cleric.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['../assets/cleric_background.png'].texture;
+		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/cleric.png'].texture;
+		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/cleric_background.png'].texture;
 		public LIFE = 15;
 		public CREDITS = 10;
 		public SKILL_DESC = 'Cleric Skill Recover 10 points of life';
@@ -85,8 +85,8 @@ export namespace CharStrategy {
 
 	export class MageClassStrategy implements CharStrategy {
 		public NAME = 'Mage';
-		public PORTRAIT: Texture = PIXI.Loader.shared.resources['../assets/mage.png'].texture;
-		public BACKGROUND: Texture = PIXI.Loader.shared.resources['../assets/mage_background.png'].texture;
+		public PORTRAIT: Texture = PIXI.Loader.shared.resources['assets/mage.png'].texture;
+		public BACKGROUND: Texture = PIXI.Loader.shared.resources['assets/mage_background.png'].texture;
 		public LIFE = 10;
 		public CREDITS = 100;
 		public SKILL_DESC = 'Mage Skill Makes every Spinner roll slots  by the number of their locations';

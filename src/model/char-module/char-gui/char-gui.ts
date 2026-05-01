@@ -38,9 +38,9 @@ export class CharGUI {
 
 	private setupCharFrame() {
 		const portrait = new Sprite(this.char.portrait);
-		const frame = new Sprite(PIXI.Loader.shared.resources['../assets/char_frame.png'].texture);
-		const isProtectedframe = new Sprite(PIXI.Loader.shared.resources['../assets/protected_icon.png'].texture);
-		const coin = new Sprite(PIXI.Loader.shared.resources['../assets/coin.png'].texture);
+		const frame = new Sprite(PIXI.Loader.shared.resources['assets/char_frame.png'].texture);
+		const isProtectedframe = new Sprite(PIXI.Loader.shared.resources['assets/protected_icon.png'].texture);
+		const coin = new Sprite(PIXI.Loader.shared.resources['assets/coin.png'].texture);
 
 		// plot class portrait
 		// scale to fit container
@@ -96,7 +96,7 @@ export class CharGUI {
 
 	private setupLifeBar() {
 		// Life Bar
-		this.lifeBar = new Sprite(PIXI.Loader.shared.resources['../assets/life_bar.png'].texture);
+		this.lifeBar = new Sprite(PIXI.Loader.shared.resources['assets/life_bar.png'].texture);
 		this.lifeBar.x = Math.round((this.charRegionGraphics.width - this.lifeBar.width) / 8) + 32;
 		this.lifeBar.y = Math.round((this.margin - this.lifeBar.height) / 4);
 
@@ -130,7 +130,7 @@ export class CharGUI {
 		});
 
 		//Setup Hit effect
-		const hitBar = new Sprite(PIXI.Loader.shared.resources['../assets/hit.png'].texture);
+		const hitBar = new Sprite(PIXI.Loader.shared.resources['assets/hit.png'].texture);
 		hitBar.alpha = 0;
 		hitBar.x = Math.round((this.charRegionGraphics.width - this.lifeBar.width) / 8) - 104;
 		hitBar.y = Math.round((this.margin - this.lifeBar.height) / 4) - 48;
@@ -166,8 +166,8 @@ export class CharGUI {
 	}
 
 	private setupClassSkillBtn() {
-		const skillOff = new Sprite(PIXI.Loader.shared.resources['../assets/skill_bar_empty.png'].texture);
-		const skillReady = new Sprite(PIXI.Loader.shared.resources['../assets/skill_bar_full.png'].texture);
+		const skillOff = new Sprite(PIXI.Loader.shared.resources['assets/skill_bar_empty.png'].texture);
+		const skillReady = new Sprite(PIXI.Loader.shared.resources['assets/skill_bar_full.png'].texture);
 		const skillDesc = new Text('Skill Bar');
 
 		skillOff.x = Math.round((this.charRegionGraphics.width - this.creditsText.width) / 16) + 212;
@@ -244,7 +244,7 @@ export class CharGUI {
 		const potionGraphics = new Graphics();
 		potionGraphics.buttonMode = true;
 		potionGraphics.interactive = true;
-		const potion = new Sprite(PIXI.Loader.shared.resources['../assets/potion_icon.png'].texture);
+		const potion = new Sprite(PIXI.Loader.shared.resources['assets/potion_icon.png'].texture);
 		const potionText = new Text(this._gameLogicService.POTION_PRICE.toString(), this.style);
 		potionText.visible = false;
 

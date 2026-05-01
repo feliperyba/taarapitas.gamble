@@ -36,11 +36,11 @@ export class Reel {
 
 	constructor(private app: Application, private _gameLogicService: GameLogicService) {
 		this.slotTextures = [
-			PIXI.Loader.shared.resources['../assets/3xBAR.png'].texture,
-			PIXI.Loader.shared.resources['../assets/BAR.png'].texture,
-			PIXI.Loader.shared.resources['../assets/2xBAR.png'].texture,
-			PIXI.Loader.shared.resources['../assets/7.png'].texture,
-			PIXI.Loader.shared.resources['../assets/Cherry.png'].texture
+			PIXI.Loader.shared.resources['assets/3xBAR.png'].texture,
+			PIXI.Loader.shared.resources['assets/BAR.png'].texture,
+			PIXI.Loader.shared.resources['assets/2xBAR.png'].texture,
+			PIXI.Loader.shared.resources['assets/7.png'].texture,
+			PIXI.Loader.shared.resources['assets/Cherry.png'].texture
 		];
 		this.setContainers();
 		this.setAnimations(this.app);

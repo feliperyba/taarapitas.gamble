@@ -12,9 +12,9 @@ declare var PIXI: any;
 export class CharSelectionScreen {
 	private CHAR_BOX_H = this.app.screen.height;
 	private CHAR_BOX_W = this.app.screen.width / 4;
-	private btnTexture = PIXI.Loader.shared.resources['../assets/button.png'].texture;
-	private btnOverTexture = PIXI.Loader.shared.resources['../assets/button-HOVER.png'].texture;
-	private btnPushTexture = PIXI.Loader.shared.resources['../assets/button-PUSH.png'].texture;
+	private btnTexture = PIXI.Loader.shared.resources['assets/button.png'].texture;
+	private btnOverTexture = PIXI.Loader.shared.resources['assets/button-HOVER.png'].texture;
+	private btnPushTexture = PIXI.Loader.shared.resources['assets/button-PUSH.png'].texture;
 
 	private charClasses = [
 		new CharStrategy.WarriorClassStrategy(),
@@ -83,8 +83,8 @@ export class CharSelectionScreen {
 			const charRegionGraphics = new Graphics();
 			const classBackground = new Sprite(char.BACKGROUND);
 			const classPortrait = new Sprite(char.PORTRAIT);
-			const lifeIcon = new Sprite(PIXI.Loader.shared.resources['../assets/life_icon.png'].texture);
-			const creditIcon = new Sprite(PIXI.Loader.shared.resources['../assets/credit_icon.png'].texture);
+			const lifeIcon = new Sprite(PIXI.Loader.shared.resources['assets/life_icon.png'].texture);
+			const creditIcon = new Sprite(PIXI.Loader.shared.resources['assets/credit_icon.png'].texture);
 
 			const classNameText: Text = new Text(char.NAME, Titlestyle);
 			const creditsText: Text = new Text(char.CREDITS.toString(), style);

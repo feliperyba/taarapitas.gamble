@@ -111,7 +111,7 @@ export class GameLogicService {
 			});
 
 			// Add background
-			const background = new Sprite(PIXI.Loader.shared.resources['../assets/lose_msg.png'].texture);
+			const background = new Sprite(PIXI.Loader.shared.resources['assets/lose_msg.png'].texture);
 			background.x = this.msgContainer.width / 2 + 64;
 			background.y = this.msgContainer.height / 2 + 64;
 
@@ -127,9 +127,9 @@ export class GameLogicService {
 			text.y = background.y + background.width / 4;
 
 			// Add End btn
-			const btnTexture = PIXI.Loader.shared.resources['../assets/button.png'].texture;
-			const btnOverTexture = PIXI.Loader.shared.resources['../assets/button-HOVER.png'].texture;
-			const btnPushTexture = PIXI.Loader.shared.resources['../assets/button-PUSH.png'].texture;
+			const btnTexture = PIXI.Loader.shared.resources['assets/button.png'].texture;
+			const btnOverTexture = PIXI.Loader.shared.resources['assets/button-HOVER.png'].texture;
+			const btnPushTexture = PIXI.Loader.shared.resources['assets/button-PUSH.png'].texture;
 			const endBtn = new Button(96, 248, btnTexture, btnOverTexture, btnPushTexture, 'Restart', style);
 			endBtn.btnContainer.x = background.x + background.width / 2 - 54;
 			endBtn.btnContainer.y = background.y + background.width / 2 + 32;
