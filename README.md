@@ -1,7 +1,7 @@
 # Taarapita´s Gamble
 RogueLite Slot Machine game with Pixi.JS and Angular 6
 
- [You can play it online here!](http://rybakovas.me/examples/pixijs)
+ [You can play it online here!](https://feliperyba.github.io/taarapitas.gamble/)
 
 The Chronicle of Henry of Livonia mentions Tharapita as the superior god of the Oeselians (inhabitants of Saaremaa), also well known to Vironian tribes in northern Estonia. According to the chronicle, when the crusaders invaded Vironia in 1220, there was a beautiful wooded hill in Vironia, where locals believe Tharapita was born and from which he flew to Saaremaa. 
 
