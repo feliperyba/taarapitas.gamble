@@ -25,6 +25,7 @@
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
             "index": "src/index.html",
+            "allowedCommonJsDependencies": ["@xmldom/xmldom", "parse-svg-path"],
             "assets": [
               {
                 "glob": "**/*",

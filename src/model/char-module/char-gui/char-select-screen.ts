@@ -25,7 +25,11 @@ export class CharSelectionScreen {
 		this.btnPushTexture = getTexture('assets/button-PUSH.png');
 
 		let i = 0;
-		const titleGrad = new FillGradient(0, 0, 0, 1);
+		const titleGrad = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		titleGrad.addColorStop(0, '#753213').addColorStop(1, '#FAE888');
 		const Titlestyle = new TextStyle({
 			fontFamily: 'Primitive',
@@ -45,7 +49,11 @@ export class CharSelectionScreen {
 			align: 'center'
 		});
 
-		const descGrad = new FillGradient(0, 0, 0, 1);
+		const descGrad = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		descGrad.addColorStop(0, '#ffffff').addColorStop(1, '#cccccc');
 		const descStyle = new TextStyle({
 			fontFamily: 'Primitive',
@@ -65,7 +73,11 @@ export class CharSelectionScreen {
 			align: 'center'
 		});
 
-		const nameGrad = new FillGradient(0, 0, 0, 1);
+		const nameGrad = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		nameGrad.addColorStop(0, '#ffffff').addColorStop(1, '#cccccc');
 		const style = new TextStyle({
 			fontFamily: 'Primitive',
@@ -109,7 +121,7 @@ export class CharSelectionScreen {
 				(this.charClasses.length - 1) * SCENE_LAYOUT.charSelect.columnGap;
 			const cardX = (DESIGN_WIDTH - totalWidth) / 2 + i * columnStep;
 			const contentCenterX = cardLayout.cardWidth / 2;
-			const charRegionGraphics = new Graphics();
+			const cardContainer = new Container();
 			const classBackground = new NineSliceSprite({
 				texture: char.BACKGROUND,
 				width: cardLayout.cardWidth,
@@ -125,15 +137,15 @@ export class CharSelectionScreen {
 			const lifeIcon = new Sprite(getTexture('assets/life_icon.png'));
 			const creditIcon = new Sprite(getTexture('assets/credit_icon.png'));
 
-			const classNameText: Text = new Text(char.NAME, Titlestyle);
-			const creditsText: Text = new Text(char.CREDITS.toString(), style);
-			const lifeText: Text = new Text(char.LIFE.toString(), style);
+			const classNameText: Text = new Text({ text: char.NAME, style: Titlestyle });
+			const creditsText: Text = new Text({ text: char.CREDITS.toString(), style });
+			const lifeText: Text = new Text({ text: char.LIFE.toString(), style });
 
-			const SkillText: Text = new Text(char.SKILL_DESC, descStyle);
+			const SkillText: Text = new Text({ text: char.SKILL_DESC, style: descStyle });
 
-			charRegionGraphics.x = cardX;
-			charRegionGraphics.y = SCENE_LAYOUT.charSelect.top;
-			charRegionGraphics.hitArea = new Rectangle(
+			cardContainer.x = cardX;
+			cardContainer.y = SCENE_LAYOUT.charSelect.top;
+			cardContainer.hitArea = new Rectangle(
 				0,
 				0,
 				cardLayout.cardWidth,
@@ -212,22 +224,22 @@ export class CharSelectionScreen {
 			btnSelect.btnContainer.x = contentCenterX - cardLayout.selectButtonWidth / 2;
 			btnSelect.btnContainer.y = cardLayout.cardHeight - cardLayout.selectButtonHeight - cardLayout.selectButtonBottom;
 
-			charRegionGraphics.addChild(classBackground);
-			charRegionGraphics.addChild(statPanel);
-			charRegionGraphics.addChild(descPanel);
-			charRegionGraphics.addChild(classPortrait);
-			charRegionGraphics.addChild(classNameText);
-			charRegionGraphics.addChild(lifeIcon);
-			charRegionGraphics.addChild(lifeText);
-			charRegionGraphics.addChild(creditIcon);
-			charRegionGraphics.addChild(creditsText);
-			charRegionGraphics.addChild(SkillText);
-			charRegionGraphics.addChild(btnSelect.btnContainer);
+			cardContainer.addChild(classBackground);
+			cardContainer.addChild(statPanel);
+			cardContainer.addChild(descPanel);
+			cardContainer.addChild(classPortrait);
+			cardContainer.addChild(classNameText);
+			cardContainer.addChild(lifeIcon);
+			cardContainer.addChild(lifeText);
+			cardContainer.addChild(creditIcon);
+			cardContainer.addChild(creditsText);
+			cardContainer.addChild(SkillText);
+			cardContainer.addChild(btnSelect.btnContainer);
 
-			charRegionGraphics.eventMode = 'static';
-			charRegionGraphics.cursor = 'pointer';
+			cardContainer.eventMode = 'static';
+			cardContainer.cursor = 'pointer';
 
-			this.selectCharContainer.addChild(charRegionGraphics);
+			this.selectCharContainer.addChild(cardContainer);
 			i++;
 		}
 	}

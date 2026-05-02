@@ -1,4 +1,5 @@
-import { Sprite, Application, TextStyle, Graphics, Container, Rectangle, Text, FillGradient } from 'pixi.js';
+import { Sprite, Texture, Application, TextStyle, Graphics, Container, Rectangle, Text, FillGradient, ColorMatrixFilter } from 'pixi.js';
+import { Emitter, type EmitterConfigV3 } from '@barvynkoa/particle-emitter';
 import { gsap } from 'gsap';
 import { GameLogicService, GameStates } from '../../../services/game-logic.service';
 import { Char } from '../../char-module/char';
@@ -9,21 +10,54 @@ import { SCENE_LAYOUT } from '../../../rendering/viewport';
 export class CharGUI {
 	public charGUIContainer = new Container();
 	public charRegionGraphics = new Container();
-	public creditsText: Text = new Text();
-	public lifeText: Text = new Text();
+	public creditsText: Text = new Text({ text: '' });
+	public lifeText: Text = new Text({ text: '' });
 	public lifeBar: Sprite;
+	private lifeBarHealOverlay: Sprite;
 	private heroAltarContainer = new Container();
 	private heroFrame: Sprite;
-	private heroDamageFlash: Sprite;
+	private heroFrameFlash: Sprite;
 	private lifeBarMaxWidth = 0;
 	private previousLife = 0;
 	private previousSpecialBar = 0;
 	private previousUsingSkill = false;
-	private skillStateText: Text = new Text();
-	private potionPriceText: Text = new Text();
+	private heroPortraitCenterX = 0;
+	private heroPortraitCenterY = 0;
+	private lifeBarCenterX = 0;
+	private lifeBarCenterY = 0;
+	private skillStateText: Text = new Text({ text: '' });
+	private potionPriceText: Text = new Text({ text: '' });
+	private stagePulseColor = 0xffffff;
+	private readonly lifeBarState = { percent: 1, displayedLife: 0 };
+	private readonly activeParticleEmitters = new Set<Emitter>();
+	private readonly healPulseState = { progress: 1 };
+	private readonly stagePulseFilter = new ColorMatrixFilter();
+	private readonly stagePulseState = { mix: 0, brightnessDelta: 0 };
+	private readonly damageTrailState = { percent: 1, alpha: 0 };
+	private protectedIcon: Sprite;
+	private hitBar: Sprite;
+	private skillReady: Sprite;
+	private skillOff: Sprite;
+	private skillGlow: Graphics;
+	private potionContainer: Container;
+	private lifeBarDamageTrail!: Sprite;
+	private lifeBarX = 0;
+	private lifeBarY = 0;
+	private lifeBarHeight = 0;
+	private readonly creditsDisplayState = { value: 0 };
+	private readonly potionPriceDisplayState = { value: 0 };
+	private centerCreditsFn: () => void = () => {};
+	private previousCredits = 0;
+	private previousPotionPrice = 0;
+	private lowLifePulseActive = false;
+	private skillPulseActive = false;
 
 	private hudValueStyle = (() => {
-		const gradient = new FillGradient(0, 0, 0, 1);
+		const gradient = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		gradient.addColorStop(0, '#fff8dd').addColorStop(1, '#d1ab59');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -42,7 +76,11 @@ export class CharGUI {
 	})();
 
 	private heroLabelStyle = (() => {
-		const gradient = new FillGradient(0, 0, 0, 1);
+		const gradient = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		gradient.addColorStop(0, '#fff5cf').addColorStop(1, '#b68946');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -62,7 +100,11 @@ export class CharGUI {
 	})();
 
 	private panelTitleStyle = (() => {
-		const gradient = new FillGradient(0, 0, 0, 1);
+		const gradient = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		gradient.addColorStop(0, '#fff5cf').addColorStop(1, '#c18f40');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -82,7 +124,11 @@ export class CharGUI {
 	})();
 
 	private hudPriceStyle = (() => {
-		const gradient = new FillGradient(0, 0, 0, 1);
+		const gradient = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		gradient.addColorStop(0, '#fff8dd').addColorStop(1, '#d1ab59');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -101,7 +147,11 @@ export class CharGUI {
 	})();
 
 	private panelNoteStyle = (() => {
-		const gradient = new FillGradient(0, 0, 0, 1);
+		const gradient = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		gradient.addColorStop(0, '#fef4dc').addColorStop(1, '#be9860');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -121,9 +171,6 @@ export class CharGUI {
 		});
 	})();
 
-	private changeSkillAlpha = false;
-	private changeLifeAlpha = false;
-
 	constructor(
 		public app: Application,
 		public char: Char,
@@ -138,6 +185,7 @@ export class CharGUI {
 		this.setupCreditsCluster();
 		this.setupClassSkillPanel();
 		this.setupPotionPanel();
+		this.setupMainLoop();
 		return this.charRegionGraphics;
 	}
 
@@ -151,20 +199,22 @@ export class CharGUI {
 		const portrait = new Sprite(this.char.portrait);
 		const frame = new Sprite(frameTexture);
 		const damageFlash = new Sprite(frameTexture);
-		const protectedIcon = new Sprite(getTexture('assets/protected_icon.png'));
+		this.protectedIcon = new Sprite(getTexture('assets/protected_icon.png'));
 		const portraitMask = new Graphics();
 
 		frame.scale.set(frameScale);
 		frame.x = heroCrest.x;
 		frame.y = heroCrest.y;
 		this.heroFrame = frame;
+		this.heroPortraitCenterX = portraitCenterX;
+		this.heroPortraitCenterY = portraitCenterY;
 
 		damageFlash.scale.set(frameScale);
 		damageFlash.x = frame.x;
 		damageFlash.y = frame.y;
 		damageFlash.tint = 0xe01818;
 		damageFlash.alpha = 0;
-		this.heroDamageFlash = damageFlash;
+		this.heroFrameFlash = damageFlash;
 
 		this.scaleSpriteToCover(portrait, portraitMaskRadius * 5, portraitMaskRadius * 5);
 		portrait.anchor.set(0.5);
@@ -175,15 +225,11 @@ export class CharGUI {
 		portraitMask.alpha = 0.001;
 		portrait.mask = portraitMask;
 
-		protectedIcon.anchor.set(0.5);
-		protectedIcon.x = portraitCenterX + 192;
-		protectedIcon.y = portraitCenterY - 16;
-		protectedIcon.scale.x = protectedIcon.scale.y = Math.min(40 / protectedIcon.width, 40 / protectedIcon.height);
-		protectedIcon.visible = false;
-
-		this.previousLife = this.char.life;
-		this.previousSpecialBar = this.char.specialBar;
-		this.previousUsingSkill = this.char.usingSkill;
+		this.protectedIcon.anchor.set(0.5);
+		this.protectedIcon.x = portraitCenterX + 192;
+		this.protectedIcon.y = portraitCenterY - 16;
+		this.protectedIcon.scale.x = this.protectedIcon.scale.y = Math.min(40 / this.protectedIcon.width, 40 / this.protectedIcon.height);
+		this.protectedIcon.visible = false;
 
 		this.heroAltarContainer.addChild(portrait);
 		this.heroAltarContainer.addChild(portraitMask);
@@ -193,97 +239,96 @@ export class CharGUI {
 
 		this.setupLifeBar(portraitCenterX, portraitCenterY);
 
-		this.app.ticker.add(() => {
-			protectedIcon.visible = this.char.isProtected;
-			this.updateHeroAltarMotion();
-		});
-
-		this.heroAltarContainer.addChild(protectedIcon);
+		this.heroAltarContainer.addChild(this.protectedIcon);
 	}
 
 	private setupLifeBar(portraitCenterX: number, portraitCenterY: number) {
 		const heroCrest = SCENE_LAYOUT.game.heroCrest;
 		const frameScale = heroCrest.width / getTexture('assets/char_frame.png').width;
-		const label = new Text('LIFE', this.heroLabelStyle);
-		const barMask = new Graphics();
+		const label = new Text({ text: this.char.charContext.name.toUpperCase(), style: this.heroLabelStyle });
 		const lifeBarX = heroCrest.x + Math.round(250 * frameScale);
 		const lifeBarY = heroCrest.y + Math.round(72 * frameScale);
 		const lifeBarWidth = Math.round(370 * frameScale);
 		const lifeBarHeight = Math.round(42 * frameScale);
 		this.lifeBarMaxWidth = lifeBarWidth;
+		this.lifeBarX = lifeBarX;
+		this.lifeBarY = lifeBarY;
+		this.lifeBarHeight = lifeBarHeight;
+		this.lifeBarCenterX = lifeBarX + lifeBarWidth / 2;
+		this.lifeBarCenterY = lifeBarY + lifeBarHeight / 2;
+
+		const initialPercent = Math.max(0, Math.min(1, this.char.life / this.char.totalLife));
+		this.lifeBarState.percent = initialPercent;
+		this.lifeBarState.displayedLife = this.char.life;
+		this.damageTrailState.percent = initialPercent;
+		this.damageTrailState.alpha = 0;
 
 		label.anchor.set(0.5, 0);
 		label.x = lifeBarX + lifeBarWidth / 2;
 		label.y = heroCrest.y + Math.round(130 * frameScale);
 
-		barMask.roundRect(lifeBarX, lifeBarY, lifeBarWidth, lifeBarHeight, 12).fill({ color: 0xffffff, alpha: 1 });
-		barMask.alpha = 0.001;
+		this.lifeBarDamageTrail = new Sprite(getTexture('assets/life_bar.png'));
+		this.lifeBarDamageTrail.anchor.set(0, 0);
+		this.lifeBarDamageTrail.tint = 0xb03030;
+		this.lifeBarDamageTrail.alpha = 0;
 
 		this.lifeBar = new Sprite(getTexture('assets/life_bar.png'));
-		this.lifeBar.x = lifeBarX;
-		this.lifeBar.y = lifeBarY;
-		this.lifeBar.height = lifeBarHeight;
-		this.lifeBar.width = lifeBarWidth;
-		this.lifeBar.mask = barMask;
+		this.lifeBar.anchor.set(0, 0);
 
-		this.lifeText = new Text(`${this.char.life}/${this.char.totalLife}`, this.hudValueStyle);
+		this.lifeBarHealOverlay = new Sprite(Texture.WHITE);
+		this.lifeBarHealOverlay.anchor.set(0, 0);
+		this.lifeBarHealOverlay.alpha = 0;
+		this.lifeBarHealOverlay.tint = 0x46ff8d;
+
+		this.lifeText = new Text({ text: `${this.char.life}/${this.char.totalLife}`, style: this.hudValueStyle });
 		this.lifeText.anchor.set(0.5);
 		this.lifeText.x = lifeBarX + lifeBarWidth / 2;
 		this.lifeText.y = lifeBarY + lifeBarHeight / 2;
 
-		const hitBar = new Sprite(getTexture('assets/hit.png'));
-		hitBar.alpha = 0;
-		hitBar.anchor.set(0.5);
-		hitBar.x = portraitCenterX - 32;
-		hitBar.y = portraitCenterY;
-		hitBar.scale.x = hitBar.scale.y = Math.min(150 / hitBar.width, 150 / hitBar.height);
+		this.hitBar = new Sprite(getTexture('assets/hit.png'));
+		this.hitBar.alpha = 0;
+		this.hitBar.anchor.set(0.5);
+		this.hitBar.x = portraitCenterX - 32;
+		this.hitBar.y = portraitCenterY;
+		this.hitBar.scale.x = this.hitBar.scale.y = Math.min(150 / this.hitBar.width, 150 / this.hitBar.height);
 
-		this.app.ticker.add(() => {
-			const displayedLife = Number.parseInt(this.lifeText.text.split('/')[0], 10) || this.char.life;
-			const lerpValue = this.lerp(this.char.life, displayedLife, 0.48);
-			const percent = Math.max(0, this.char.life / this.char.totalLife);
+		this.applyBarSpriteRect(this.lifeBarDamageTrail, initialPercent);
+		this.applyBarSpriteRect(this.lifeBar, initialPercent);
+		this.applyBarSpriteRect(this.lifeBarHealOverlay, initialPercent);
+		this.lifeBarDamageTrail.height = lifeBarHeight;
+		this.lifeBar.height = lifeBarHeight;
+		this.lifeBarHealOverlay.height = lifeBarHeight;
 
-			if (!gsap.isTweening(this.lifeBar)) {
-				this.lifeBar.width = lifeBarWidth * percent;
-			}
-			this.lifeText.text = `${Math.round(lerpValue)}/${this.char.totalLife}`;
-
-			if (this.char.life <= 5) {
-				if (!this.changeLifeAlpha) {
-					if (this.lifeBar.alpha < 0.4) {
-						this.changeLifeAlpha = !this.changeLifeAlpha;
-					}
-					this.lifeBar.alpha -= 0.08;
-				}
-
-				if (this.changeLifeAlpha) {
-					if (this.lifeBar.alpha > 1.0) {
-						this.changeLifeAlpha = !this.changeLifeAlpha;
-					}
-					this.lifeBar.alpha += 0.08;
-				}
-			} else {
-				this.lifeBar.alpha = 1;
-			}
-
-			if (this.char.hit == true) {
-				this.char.hit = false;
-				this.playDamageTween(hitBar);
-			}
-		});
-
-		this.heroAltarContainer.addChild(label);
+		this.heroAltarContainer.addChild(this.lifeBarDamageTrail);
 		this.heroAltarContainer.addChild(this.lifeBar);
-		this.heroAltarContainer.addChild(barMask);
+		this.heroAltarContainer.addChild(this.lifeBarHealOverlay);
 		this.heroAltarContainer.addChild(this.lifeText);
-		this.heroAltarContainer.addChild(hitBar);
+		this.heroAltarContainer.addChild(label);
+		this.heroAltarContainer.addChild(this.hitBar);
+	}
+
+	private applyBarSpriteRect(sprite: Sprite, percent: number) {
+		const visibleWidth = this.lifeBarMaxWidth * Math.max(0, Math.min(1, percent));
+		sprite.x = this.lifeBarX + this.lifeBarMaxWidth - visibleWidth;
+		sprite.width = visibleWidth;
 	}
 
 	private updateHeroAltarMotion() {
-		if (this.previousLife > 0 && this.char.life < this.previousLife) {
-			this.playLifeTween(this.char.life / this.char.totalLife, true);
-		} else if (this.char.life > this.previousLife) {
-			this.playLifeTween(this.char.life / this.char.totalLife, false);
+		if (this.char.hit) {
+			this.char.hit = false;
+			if (this.previousLife > 0 && this.char.life < this.previousLife) {
+				this.playDamageLifeTween(this.char.life / this.char.totalLife);
+				this.playDamageTween();
+			} else {
+				this.playProtectedHitTween();
+			}
+		} else if (this.previousLife > 0 && this.char.life < this.previousLife) {
+			this.playDamageLifeTween(this.char.life / this.char.totalLife);
+		}
+
+		if (this.char.life > this.previousLife) {
+			this.playHealBurst(this.char.life - this.previousLife);
+			this.playHealLifeTween(this.char.life / this.char.totalLife);
 		}
 
 		if (this.char.usingSkill && !this.previousUsingSkill) {
@@ -294,38 +339,551 @@ export class CharGUI {
 			this.playSkillTween();
 		}
 
+		if (this.char.credits !== this.previousCredits) {
+			gsap.to(this.creditsDisplayState, {
+				value: this.char.credits,
+				duration: 0.5,
+				ease: 'power2.out',
+				overwrite: true,
+				onUpdate: () => {
+					this.creditsText.text = Math.round(this.creditsDisplayState.value).toString();
+					this.centerCreditsFn();
+				}
+			});
+			this.previousCredits = this.char.credits;
+		}
+
+		if (this._gameLogicService.POTION_PRICE !== this.previousPotionPrice) {
+			gsap.to(this.potionPriceDisplayState, {
+				value: this._gameLogicService.POTION_PRICE,
+				duration: 0.6,
+				ease: 'power2.out',
+				overwrite: true,
+				onUpdate: () => {
+					this.potionPriceText.text = Math.round(this.potionPriceDisplayState.value).toString();
+					this.fitTextToWidth(this.potionPriceText, 82, 0.82);
+				}
+			});
+			this.previousPotionPrice = this._gameLogicService.POTION_PRICE;
+		}
+
 		this.previousLife = this.char.life;
 		this.previousSpecialBar = this.char.specialBar;
 		this.previousUsingSkill = this.char.usingSkill;
 	}
 
-	private playLifeTween(percent: number, tookDamage: boolean) {
-		const targetWidth = this.lifeBarMaxWidth * Math.max(0, Math.min(1, percent));
-		gsap.killTweensOf(this.lifeBar);
-		gsap.to(this.lifeBar, {
-			width: targetWidth,
-			duration: tookDamage ? 0.9 : 0.66,
-			ease: tookDamage ? 'power3.out' : 'back.out(1.6)'
+	private playDamageLifeTween(percent: number) {
+		const oldPercent = this.lifeBarState.percent;
+		const clampedPercent = Math.max(0, Math.min(1, percent));
+		gsap.killTweensOf([this.lifeBarState, this.lifeBarHealOverlay, this.healPulseState, this.damageTrailState]);
+		this.lifeBarHealOverlay.alpha = 0;
+
+		const cropTimeline = gsap
+			.timeline({ overwrite: true })
+			.to(this.lifeBarState, { percent: Math.min(1, oldPercent + 0.01), duration: 0.03, ease: 'power1.out' })
+			.to(this.lifeBarState, { percent: clampedPercent, duration: 0.22, ease: 'power3.out' });
+
+		const cropDuration = cropTimeline.totalDuration();
+
+		gsap.to(this.lifeBarState, {
+			displayedLife: this.char.life,
+			duration: cropDuration,
+			ease: 'power2.out',
+			overwrite: true
+		});
+
+		this.damageTrailState.percent = clampedPercent;
+		this.damageTrailState.alpha = 0;
+		gsap
+			.timeline({ overwrite: true })
+			.set(this.damageTrailState, { percent: oldPercent, alpha: 0.55 }, cropDuration)
+			.to(this.damageTrailState, {
+				percent: clampedPercent,
+				alpha: 0,
+				duration: 0.78,
+				ease: 'power2.out'
+			}, cropDuration);
+	}
+
+	private playHealLifeTween(percent: number) {
+		const clampedPercent = Math.max(0, Math.min(1, percent));
+		const percentGain = Math.max(0, clampedPercent - this.lifeBarState.percent);
+		const overshootPercent = Math.min(1, clampedPercent + Math.max(0.05, percentGain * 0.28));
+
+		gsap.killTweensOf([this.lifeBarState, this.heroAltarContainer.scale, this.lifeText.scale, this.heroFrameFlash, this.healPulseState, this.lifeBarHealOverlay, this.damageTrailState]);
+		this.damageTrailState.alpha = 0;
+
+		gsap
+			.timeline({ overwrite: true })
+			.to(this.lifeBarState, { percent: overshootPercent, duration: 0.38, ease: 'power2.out' })
+			.to(this.lifeBarState, { percent: clampedPercent, duration: 0.92, ease: 'back.out(1.4)' });
+
+		gsap.to(this.lifeBarState, {
+			displayedLife: this.char.life,
+			duration: 1.42,
+			ease: 'power2.out',
+			overwrite: true
+		});
+
+		gsap.fromTo(
+			this.heroAltarContainer.scale,
+			{ x: 0.992, y: 0.992 },
+			{ x: 1.042, y: 1.042, duration: 0.26, ease: 'power2.out', yoyo: true, repeat: 1 }
+		);
+
+		gsap.fromTo(this.lifeText.scale, { x: 1.28, y: 1.28 }, { x: 1, y: 1, duration: 0.92, ease: 'back.out(2.2)' });
+
+		gsap
+			.timeline()
+			.set(this.heroFrameFlash, { tint: 0xff88d7, alpha: 0 })
+			.to(this.heroFrameFlash, { alpha: 0.52, duration: 0.16, ease: 'power2.out' })
+			.to(this.heroFrameFlash, { alpha: 0.14, duration: 0.22, ease: 'power2.inOut' })
+			.to(this.heroFrameFlash, { alpha: 0, duration: 0.42, ease: 'power2.out' });
+
+		this.healPulseState.progress = 0;
+		this.lifeBarHealOverlay.alpha = 0;
+		gsap.to(this.healPulseState, {
+			progress: 1,
+			duration: 1.72,
+			ease: 'sine.inOut',
+			onUpdate: () => this.applyHealColorPulse(this.healPulseState.progress),
+			onComplete: () => {
+				this.lifeBarHealOverlay.alpha = 0;
+			}
 		});
 	}
 
-	private playDamageTween(hitBar: Sprite) {
-		gsap.killTweensOf([this.heroAltarContainer, this.heroDamageFlash, hitBar]);
+	private applyHealColorPulse(progress: number) {
+		const clampedProgress = Math.max(0, Math.min(1, progress));
+
+		if (clampedProgress < 0.22) {
+			const riseAmount = clampedProgress / 0.22;
+			this.lifeBarHealOverlay.tint = this.mixColor(0xc7ff7c, 0x4fff97, riseAmount);
+			this.lifeBarHealOverlay.alpha = this.lerp(0, 0.94, riseAmount);
+			return;
+		}
+
+		if (clampedProgress < 0.78) {
+			const holdAmount = (clampedProgress - 0.22) / 0.56;
+			this.lifeBarHealOverlay.tint = this.mixColor(0x4fff97, 0x8dffc5, holdAmount);
+			this.lifeBarHealOverlay.alpha = this.lerp(0.94, 0.68, holdAmount);
+			return;
+		}
+
+		const fallAmount = (clampedProgress - 0.78) / 0.22;
+		this.lifeBarHealOverlay.tint = this.mixColor(0x8dffc5, 0x4fff97, fallAmount);
+		this.lifeBarHealOverlay.alpha = this.lerp(0.68, 0, fallAmount);
+	}
+
+	private playDamageTween() {
+		this.playScreenPulse(0xff6c63, 0.3, -0.18, 0.38);
+		gsap.killTweensOf([this.heroAltarContainer, this.heroAltarContainer.scale, this.lifeText.scale, this.heroFrameFlash, this.hitBar, this.healPulseState, this.lifeBarHealOverlay]);
+		this.heroAltarContainer.scale.set(1);
+		this.lifeText.scale.set(1);
+		this.lifeBarHealOverlay.alpha = 0;
 		gsap
 			.timeline()
-			.to(this.heroAltarContainer, { x: -10, duration: 0.035, ease: 'power1.inOut' })
-			.to(this.heroAltarContainer, { x: 8, duration: 0.045, ease: 'power1.inOut' })
-			.to(this.heroAltarContainer, { x: -4, duration: 0.04, ease: 'power1.inOut' })
-			.to(this.heroAltarContainer, { x: 0, duration: 0.12, ease: 'power3.out' });
+			.to(this.heroAltarContainer, { x: -12, duration: 0.03, ease: 'power1.inOut' })
+			.to(this.heroAltarContainer, { x: 10, duration: 0.04, ease: 'power1.inOut' })
+			.to(this.heroAltarContainer, { x: -5, duration: 0.035, ease: 'power1.inOut' })
+			.to(this.heroAltarContainer, { x: 0, duration: 0.1, ease: 'power3.out' });
 		gsap
 			.timeline()
-			.set(this.heroDamageFlash, { alpha: 0 })
-			.to(this.heroDamageFlash, { alpha: 0.66, duration: 0.055, ease: 'power2.out' })
-			.to(this.heroDamageFlash, { alpha: 0.12, duration: 0.09, ease: 'power2.in' })
-			.to(this.heroDamageFlash, { alpha: 0.38, duration: 0.045, ease: 'power2.out' })
-			.to(this.heroDamageFlash, { alpha: 0, duration: 0.18, ease: 'power2.out' });
-		gsap.fromTo(hitBar, { alpha: 1 }, { alpha: 0, duration: 1.33, ease: 'power2.out' });
-		gsap.fromTo(hitBar.scale, { x: 0.2, y: 0.2 }, { x: 1, y: 1, duration: 0.33, ease: 'power2.out' });
+			.set(this.heroFrameFlash, { tint: 0xe01818, alpha: 0 })
+			.to(this.heroFrameFlash, { alpha: 0.72, duration: 0.048, ease: 'power2.out' })
+			.to(this.heroFrameFlash, { alpha: 0.1, duration: 0.08, ease: 'power2.in' })
+			.to(this.heroFrameFlash, { alpha: 0.42, duration: 0.04, ease: 'power2.out' })
+			.to(this.heroFrameFlash, { alpha: 0, duration: 0.16, ease: 'power2.out' });
+		gsap.fromTo(this.hitBar, { alpha: 1 }, { alpha: 0, duration: 1.12, ease: 'power2.out' });
+		gsap.fromTo(this.hitBar.scale, { x: 0.2, y: 0.2 }, { x: 1, y: 1, duration: 0.28, ease: 'power2.out' });
+		gsap.fromTo(
+			this.heroAltarContainer.scale,
+			{ x: 0.96, y: 0.96 },
+			{ x: 1, y: 1, duration: 0.38, ease: 'back.out(2.5)' }
+		);
+	}
+
+	private playProtectedHitTween() {
+		gsap.killTweensOf([this.heroAltarContainer, this.heroAltarContainer.scale, this.lifeText.scale, this.heroFrameFlash, this.hitBar]);
+		this.heroAltarContainer.scale.set(1);
+		this.lifeText.scale.set(1);
+
+		gsap
+			.timeline()
+			.to(this.heroAltarContainer, { x: -8, duration: 0.03, ease: 'power1.inOut' })
+			.to(this.heroAltarContainer, { x: 6, duration: 0.04, ease: 'power1.inOut' })
+			.to(this.heroAltarContainer, { x: 0, duration: 0.1, ease: 'power3.out' });
+
+		gsap
+			.timeline()
+			.set(this.heroFrameFlash, { tint: 0x4da6ff, alpha: 0 })
+			.to(this.heroFrameFlash, { alpha: 0.5, duration: 0.06, ease: 'power2.out' })
+			.to(this.heroFrameFlash, { alpha: 0, duration: 0.2, ease: 'power2.out' });
+
+		gsap.fromTo(this.hitBar, { alpha: 1 }, { alpha: 0, duration: 1.12, ease: 'power2.out' });
+		gsap.fromTo(this.hitBar.scale, { x: 0.2, y: 0.2 }, { x: 1, y: 1, duration: 0.28, ease: 'power2.out' });
+		gsap.fromTo(
+			this.heroAltarContainer.scale,
+			{ x: 0.97, y: 0.97 },
+			{ x: 1, y: 1, duration: 0.35, ease: 'back.out(2)' }
+		);
+	}
+
+	private playHealBurst(healedAmount: number) {
+		if (healedAmount <= 0) {
+			return;
+		}
+
+		const healStrength = Math.min(2.15, 1.18 + healedAmount / Math.max(1, this._gameLogicService.POTION_HEALTH));
+		this.playScreenPulse(0xff9ce6, 0.24, 0.12, 0.78);
+		this.spawnHealingEmitter(this.createAltarHealEmitterConfig(healStrength));
+		this.spawnHealingEmitter(this.createAltarSparkEmitterConfig(healStrength));
+		this.spawnHealingEmitter(this.createLifeBarHealEmitterConfig(healStrength));
+	}
+
+	private createAltarHealEmitterConfig(healStrength: number): EmitterConfigV3 {
+		return {
+			lifetime: { min: 1.4, max: 2.2 },
+			frequency: 0.04,
+			spawnChance: 1,
+			particlesPerWave: 4,
+			emitterLifetime: 0.74,
+			maxParticles: 78,
+			pos: {
+				x: this.heroPortraitCenterX,
+				y: this.heroPortraitCenterY + 24
+			},
+			emit: false,
+			autoUpdate: false,
+			behaviors: [
+				{
+					type: 'alpha',
+					config: {
+						alpha: {
+							list: [
+								{ value: 0.96, time: 0 },
+								{ value: 0.84, time: 0.18 },
+								{ value: 0.42, time: 0.7 },
+								{ value: 0, time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'scale',
+					config: {
+						scale: {
+							list: [
+								{ value: 0.82, time: 0 },
+								{ value: 1.9, time: 0.34 },
+								{ value: 0.28, time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'color',
+					config: {
+						color: {
+							list: [
+								{ value: '#ff79d2', time: 0 },
+								{ value: '#ffc3f2', time: 0.55 },
+								{ value: '#ffe8ff', time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'moveSpeed',
+					config: {
+						speed: {
+							list: [
+								{ value: 62 * healStrength, time: 0 },
+								{ value: 10, time: 1 }
+							],
+							isStepped: false
+						}
+					}
+				},
+				{
+					type: 'rotationStatic',
+					config: { min: 0, max: 360 }
+				},
+				{
+					type: 'spawnShape',
+					config: {
+						type: 'torus',
+						data: {
+							x: 0,
+							y: 0,
+							radius: 122 * healStrength,
+							innerRadius: 34,
+							affectRotation: true
+						}
+					}
+				},
+				{
+					type: 'textureSingle',
+					config: { texture: getTexture('assets/symbol_01.png') }
+				}
+			]
+		};
+	}
+
+	private createAltarSparkEmitterConfig(healStrength: number): EmitterConfigV3 {
+		return {
+			lifetime: { min: 0.95, max: 1.5 },
+			frequency: 0.024,
+			spawnChance: 1,
+			particlesPerWave: 5,
+			emitterLifetime: 0.62,
+			maxParticles: 88,
+			pos: {
+				x: this.heroPortraitCenterX,
+				y: this.heroPortraitCenterY + 42
+			},
+			emit: false,
+			autoUpdate: false,
+			behaviors: [
+				{
+					type: 'alpha',
+					config: {
+						alpha: {
+							list: [
+								{ value: 0.85, time: 0 },
+								{ value: 0.56, time: 0.46 },
+								{ value: 0, time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'scale',
+					config: {
+						scale: {
+							list: [
+								{ value: 0.38, time: 0 },
+								{ value: 0.96, time: 0.48 },
+								{ value: 0.12, time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'color',
+					config: {
+						color: {
+							list: [
+								{ value: '#ff7dda', time: 0 },
+								{ value: '#ffc6f3', time: 0.5 },
+								{ value: '#fff4ff', time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'moveSpeed',
+					config: {
+						speed: {
+							list: [
+								{ value: 74 * healStrength, time: 0 },
+								{ value: 14, time: 1 }
+							],
+							isStepped: false
+						}
+					}
+				},
+				{
+					type: 'rotationStatic',
+					config: { min: 250, max: 290 }
+				},
+				{
+					type: 'spawnShape',
+					config: {
+						type: 'rect',
+						data: {
+							x: -64,
+							y: -28,
+							w: 128,
+							h: 72
+						}
+					}
+				},
+				{
+					type: 'textureSingle',
+					config: { texture: getTexture('assets/symbol_01.png') }
+				}
+			]
+		};
+	}
+
+	private createLifeBarHealEmitterConfig(healStrength: number): EmitterConfigV3 {
+		const activeWidth = Math.max(64, this.lifeBarMaxWidth * this.lifeBarState.percent - 20);
+
+		return {
+			lifetime: { min: 1.08, max: 1.72 },
+			frequency: 0.032,
+			spawnChance: 1,
+			particlesPerWave: 4,
+			emitterLifetime: 0.62,
+			maxParticles: 68,
+			pos: {
+				x: this.lifeBarCenterX,
+				y: this.lifeBarCenterY
+			},
+			emit: false,
+			autoUpdate: false,
+			behaviors: [
+				{
+					type: 'alpha',
+					config: {
+						alpha: {
+							list: [
+								{ value: 0.94, time: 0 },
+								{ value: 0.72, time: 0.36 },
+								{ value: 0, time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'scale',
+					config: {
+						scale: {
+							list: [
+								{ value: 0.54, time: 0 },
+								{ value: 1.08, time: 0.42 },
+								{ value: 0.16, time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'color',
+					config: {
+						color: {
+							list: [
+								{ value: '#ff8edd', time: 0 },
+								{ value: '#ffd7f7', time: 1 }
+							]
+						}
+					}
+				},
+				{
+					type: 'moveSpeed',
+					config: {
+						speed: {
+							list: [
+								{ value: 34 * healStrength, time: 0 },
+								{ value: 8, time: 1 }
+							],
+							isStepped: false
+						}
+					}
+				},
+				{
+					type: 'rotationStatic',
+					config: { min: 258, max: 282 }
+				},
+				{
+					type: 'spawnShape',
+					config: {
+						type: 'rect',
+						data: {
+							x: -activeWidth / 2,
+							y: -this.lifeBar.height / 2,
+							w: activeWidth,
+							h: this.lifeBar.height
+						}
+					}
+				},
+				{
+					type: 'textureSingle',
+					config: { texture: getTexture('assets/symbol_01.png') }
+				}
+			]
+		};
+	}
+
+	private spawnHealingEmitter(config: EmitterConfigV3) {
+		const particleLayer = new Container();
+		const emitter = new Emitter(particleLayer, config);
+
+		this.heroAltarContainer.addChild(particleLayer);
+		this.activeParticleEmitters.add(emitter);
+		emitter.playOnceAndDestroy(() => {
+			this.activeParticleEmitters.delete(emitter);
+			particleLayer.destroy({ children: true });
+		});
+	}
+
+	private updateActiveParticleEmitters(deltaSeconds: number) {
+		if (this.activeParticleEmitters.size === 0) {
+			return;
+		}
+
+		for (const emitter of Array.from(this.activeParticleEmitters)) {
+			if (emitter.destroyed) {
+				this.activeParticleEmitters.delete(emitter);
+				continue;
+			}
+
+			emitter.update(deltaSeconds);
+		}
+	}
+
+	private playScreenPulse(color: number, peakMix: number, brightnessDelta: number, duration: number) {
+		this.stagePulseColor = color;
+		this.stagePulseState.mix = 0;
+		this.stagePulseState.brightnessDelta = brightnessDelta;
+		gsap.killTweensOf(this.stagePulseState);
+		this.updateStagePulseFilter();
+
+		gsap.timeline({
+			onUpdate: () => this.updateStagePulseFilter(),
+			onComplete: () => {
+				this.stagePulseState.mix = 0;
+				this.updateStagePulseFilter();
+			}
+		})
+			.to(this.stagePulseState, { mix: peakMix, duration: duration * 0.32, ease: 'power2.out' })
+			.to(this.stagePulseState, { mix: 0, duration: duration * 0.68, ease: 'power2.inOut' });
+	}
+
+	private updateStagePulseFilter() {
+		const stageFilters = this.app.stage.filters ?? [];
+
+		if (this.stagePulseState.mix <= 0.001) {
+			this.stagePulseFilter.reset();
+			if (stageFilters.includes(this.stagePulseFilter)) {
+				this.app.stage.filters = stageFilters.filter((filter) => filter !== this.stagePulseFilter);
+			}
+			return;
+		}
+
+		if (!stageFilters.includes(this.stagePulseFilter)) {
+			this.app.stage.filters = [...stageFilters, this.stagePulseFilter];
+		}
+
+		this.stagePulseFilter.reset();
+		this.stagePulseFilter.tint(this.mixColor(0xffffff, this.stagePulseColor, this.stagePulseState.mix), false);
+		this.stagePulseFilter.brightness(1 + this.stagePulseState.brightnessDelta * this.stagePulseState.mix, true);
+	}
+
+	private mixColor(from: number, to: number, amount: number): number {
+		const clampedAmount = Math.max(0, Math.min(1, amount));
+		const fromRed = (from >> 16) & 0xff;
+		const fromGreen = (from >> 8) & 0xff;
+		const fromBlue = from & 0xff;
+		const toRed = (to >> 16) & 0xff;
+		const toGreen = (to >> 8) & 0xff;
+		const toBlue = to & 0xff;
+
+		return (
+			(Math.round(this.lerp(fromRed, toRed, clampedAmount)) << 16) |
+			(Math.round(this.lerp(fromGreen, toGreen, clampedAmount)) << 8) |
+			Math.round(this.lerp(fromBlue, toBlue, clampedAmount))
+		);
 	}
 
 	private playSkillTween() {
@@ -345,7 +903,7 @@ export class CharGUI {
 		const creditsCluster = SCENE_LAYOUT.game.creditsCluster;
 		const panel = new Graphics();
 		const trim = new Graphics();
-		const label = new Text('CREDITS', this.panelTitleStyle);
+		const label = new Text({ text: 'CREDITS', style: this.panelTitleStyle });
 		const coin = new Sprite(getTexture('assets/coin.png'));
 
 		panel
@@ -362,11 +920,11 @@ export class CharGUI {
 		coin.y = creditsCluster.centerY + 12;
 		coin.scale.x = coin.scale.y = Math.min(52 / coin.width, 52 / coin.height);
 
-		this.creditsText = new Text(this.char.credits.toString(), this.style);
+		this.creditsText = new Text({ text: this.char.credits.toString(), style: this.style });
 		this.creditsText.anchor.set(0, 0.5);
 		this.creditsText.y = creditsCluster.centerY + 10;
 
-		const centerCreditsValue = () => {
+		this.centerCreditsFn = () => {
 			this.fitTextToWidth(this.creditsText, creditsCluster.width - 100, 0.76);
 			const gap = 14;
 			const coinWidth = coin.width;
@@ -374,14 +932,7 @@ export class CharGUI {
 			coin.x = creditsCluster.centerX - totalWidth / 2 + coinWidth / 2;
 			this.creditsText.x = coin.x + coinWidth / 2 + gap;
 		};
-		centerCreditsValue();
-
-		this.app.ticker.add(() => {
-			const currentValue = Number.parseInt(this.creditsText.text, 10) || this.char.credits;
-			const lerpValue = this.lerp(this.char.credits, currentValue, 0.5);
-			this.creditsText.text = Math.round(lerpValue).toString();
-			centerCreditsValue();
-		});
+		this.centerCreditsFn();
 
 		this.charRegionGraphics.addChild(panel);
 		this.charRegionGraphics.addChild(trim);
@@ -395,10 +946,10 @@ export class CharGUI {
 		const skillContainer = new Container();
 		const panel = new Graphics();
 		const trim = new Graphics();
-		const title = new Text('SKILL', this.panelTitleStyle);
-		const skillGlow = new Graphics();
-		const skillOff = new Sprite(getTexture('assets/skill_bar_empty.png'));
-		const skillReady = new Sprite(getTexture('assets/skill_bar_full.png'));
+		const title = new Text({ text: 'SKILL', style: this.panelTitleStyle });
+		this.skillGlow = new Graphics();
+		this.skillOff = new Sprite(getTexture('assets/skill_bar_empty.png'));
+		this.skillReady = new Sprite(getTexture('assets/skill_bar_full.png'));
 
 		panel
 			.roundRect(skillWell.x, skillWell.y, skillWell.width, skillWell.height, 24)
@@ -420,18 +971,18 @@ export class CharGUI {
 		skillContainer.cursor = 'pointer';
 		skillContainer.hitArea = new Rectangle(-skillWell.width / 2 + 12, -72, skillWell.width - 24, 112);
 
-		skillGlow.circle(0, 0, 68).fill({ color: 0xf0912c, alpha: 0.1 });
-		skillGlow.circle(0, 0, 48).fill({ color: 0x070302, alpha: 0.74 });
+		this.skillGlow.circle(0, 0, 68).fill({ color: 0xf0912c, alpha: 0.1 });
+		this.skillGlow.circle(0, 0, 48).fill({ color: 0x070302, alpha: 0.74 });
 
-		skillOff.anchor.set(0.5);
-		skillOff.scale.x = skillOff.scale.y = Math.min(118 / skillOff.width, 118 / skillOff.height);
-		skillOff.alpha = 1;
+		this.skillOff.anchor.set(0.5);
+		this.skillOff.scale.x = this.skillOff.scale.y = Math.min(118 / this.skillOff.width, 118 / this.skillOff.height);
+		this.skillOff.alpha = 1;
 
-		skillReady.anchor.set(0.5);
-		skillReady.scale.x = skillReady.scale.y = Math.min(112 / skillReady.width, 112 / skillReady.height);
-		skillReady.visible = false;
+		this.skillReady.anchor.set(0.5);
+		this.skillReady.scale.x = this.skillReady.scale.y = Math.min(112 / this.skillReady.width, 112 / this.skillReady.height);
+		this.skillReady.visible = false;
 
-		this.skillStateText = new Text('Charge 0 / 3', this.panelNoteStyle);
+		this.skillStateText = new Text({ text: 'Charge 0 / 3', style: this.panelNoteStyle });
 		this.skillStateText.anchor.set(0.5, 0);
 		this.skillStateText.x = skillWell.centerX;
 		this.skillStateText.y = skillWell.y + 144;
@@ -458,39 +1009,9 @@ export class CharGUI {
 			}
 		});
 
-		this.app.ticker.add(() => {
-			if (this.char.specialBar >= 3) {
-				skillReady.visible = true;
-				skillOff.alpha = 0.35;
-
-				if (!this.changeSkillAlpha) {
-					if (skillReady.alpha < 0.48) {
-						this.changeSkillAlpha = !this.changeSkillAlpha;
-					}
-					skillReady.alpha -= 0.05;
-				}
-
-				if (this.changeSkillAlpha) {
-					if (skillReady.alpha > 1.0) {
-						this.changeSkillAlpha = !this.changeSkillAlpha;
-					}
-					skillReady.alpha += 0.05;
-				}
-
-				skillGlow.alpha = 0.25 + skillReady.alpha * 0.16;
-				this.skillStateText.text = 'Ready to cast';
-			} else {
-				skillReady.visible = false;
-				skillReady.alpha = 1;
-				skillOff.alpha = 0.92;
-				skillGlow.alpha = 0.92;
-				this.skillStateText.text = `Charge ${this.char.specialBar} / 3`;
-			}
-		});
-
-		skillContainer.addChild(skillGlow);
-		skillContainer.addChild(skillOff);
-		skillContainer.addChild(skillReady);
+		skillContainer.addChild(this.skillGlow);
+		skillContainer.addChild(this.skillOff);
+		skillContainer.addChild(this.skillReady);
 
 		this.charRegionGraphics.addChild(panel);
 		this.charRegionGraphics.addChild(trim);
@@ -501,14 +1022,14 @@ export class CharGUI {
 
 	private setupPotionPanel() {
 		const potionWell = SCENE_LAYOUT.game.potionWell;
-		const potionContainer = new Container();
+		this.potionContainer = new Container();
 		const panel = new Graphics();
 		const trim = new Graphics();
 		const potionAura = new Graphics();
-		const title = new Text('POTION', this.panelTitleStyle);
+		const title = new Text({ text: 'POTION', style: this.panelTitleStyle });
 		const priceCoin = new Sprite(getTexture('assets/coin.png'));
 		const potion = new Sprite(getTexture('assets/potion_icon.png'));
-		const healText = new Text(`Heals ${this._gameLogicService.POTION_HEALTH} life`, this.panelNoteStyle);
+		const healText = new Text({ text: `Heals ${this._gameLogicService.POTION_HEALTH} life`, style: this.panelNoteStyle });
 
 		panel
 			.roundRect(potionWell.x, potionWell.y, potionWell.width, potionWell.height, 24)
@@ -524,11 +1045,11 @@ export class CharGUI {
 		title.x = potionWell.centerX;
 		title.y = potionWell.y + 6;
 
-		potionContainer.x = potionWell.x;
-		potionContainer.y = potionWell.y;
-		potionContainer.cursor = 'pointer';
-		potionContainer.eventMode = 'static';
-		potionContainer.hitArea = new Rectangle(0, 0, potionWell.width, potionWell.height);
+		this.potionContainer.x = potionWell.x;
+		this.potionContainer.y = potionWell.y;
+		this.potionContainer.cursor = 'pointer';
+		this.potionContainer.eventMode = 'static';
+		this.potionContainer.hitArea = new Rectangle(0, 0, potionWell.width, potionWell.height);
 
 		potionAura.circle(76, 86, 48).fill({ color: 0x8b3d08, alpha: 0.12 });
 
@@ -542,7 +1063,7 @@ export class CharGUI {
 		priceCoin.y = 80;
 		priceCoin.scale.x = priceCoin.scale.y = Math.min(24 / priceCoin.width, 24 / priceCoin.height);
 
-		this.potionPriceText = new Text(this._gameLogicService.POTION_PRICE.toString(), this.hudPriceStyle);
+		this.potionPriceText = new Text({ text: this._gameLogicService.POTION_PRICE.toString(), style: this.hudPriceStyle });
 		this.potionPriceText.anchor.set(0, 0.5);
 		this.potionPriceText.x = 208;
 		this.potionPriceText.y = 80;
@@ -551,15 +1072,7 @@ export class CharGUI {
 		healText.y = 98;
 		this.fitTextToWidth(healText, potionWell.width - 152, 0.8);
 
-		this.app.ticker.add(() => {
-			const currentValue = Number.parseInt(this.potionPriceText.text, 10) || this._gameLogicService.POTION_PRICE;
-			const lerpValue = this.lerp(this._gameLogicService.POTION_PRICE, currentValue, 0.51);
-			this.potionPriceText.text = Math.round(lerpValue).toString();
-			this.fitTextToWidth(this.potionPriceText, 82, 0.82);
-			potionContainer.alpha = this.char.credits >= this._gameLogicService.POTION_PRICE ? 1 : 0.78;
-		});
-
-		potionContainer
+		this.potionContainer
 			.on('pointerdown', () => {
 				if (this.char.credits - this._gameLogicService.POTION_PRICE >= 0) {
 					this.char.life += this._gameLogicService.POTION_HEALTH;
@@ -577,16 +1090,104 @@ export class CharGUI {
 				potionAura.alpha = 0.12;
 			});
 
-		potionContainer.addChild(potionAura);
-		potionContainer.addChild(potion);
-		potionContainer.addChild(priceCoin);
-		potionContainer.addChild(this.potionPriceText);
-		potionContainer.addChild(healText);
+		this.potionContainer.addChild(potionAura);
+		this.potionContainer.addChild(potion);
+		this.potionContainer.addChild(priceCoin);
+		this.potionContainer.addChild(this.potionPriceText);
+		this.potionContainer.addChild(healText);
 
 		this.charRegionGraphics.addChild(panel);
 		this.charRegionGraphics.addChild(trim);
 		this.charRegionGraphics.addChild(title);
-		this.charRegionGraphics.addChild(potionContainer);
+		this.charRegionGraphics.addChild(this.potionContainer);
+	}
+
+	private setupMainLoop() {
+		this.previousLife = this.char.life;
+		this.previousSpecialBar = this.char.specialBar;
+		this.previousUsingSkill = this.char.usingSkill;
+		this.previousCredits = this.char.credits;
+		this.previousPotionPrice = this._gameLogicService.POTION_PRICE;
+		this.creditsDisplayState.value = this.char.credits;
+		this.potionPriceDisplayState.value = this._gameLogicService.POTION_PRICE;
+
+		this.app.ticker.add((ticker) => {
+			const deltaSeconds = ticker.deltaMS / 1000;
+
+			this.protectedIcon.visible = this.char.isProtected;
+			this.updateHeroAltarMotion();
+			this.renderLifeBar();
+			this.renderSkillPanel();
+			this.renderPotionPanel();
+			this.updateActiveParticleEmitters(deltaSeconds);
+		});
+	}
+
+	private renderLifeBar() {
+		const percent = Math.max(0, Math.min(1, this.lifeBarState.percent));
+		this.applyBarSpriteRect(this.lifeBar, percent);
+		this.applyBarSpriteRect(this.lifeBarHealOverlay, percent);
+
+		const trailPercent = Math.max(0, Math.min(1, this.damageTrailState.percent));
+		this.applyBarSpriteRect(this.lifeBarDamageTrail, trailPercent);
+		this.lifeBarDamageTrail.alpha = this.damageTrailState.alpha;
+
+		this.lifeText.text = `${Math.round(this.lifeBarState.displayedLife)}/${this.char.totalLife}`;
+
+		if (this.char.life <= 5 && this.char.life > 0) {
+			if (!this.lowLifePulseActive) {
+				this.lowLifePulseActive = true;
+				gsap.killTweensOf(this.lifeBar);
+				gsap.to(this.lifeBar, {
+					alpha: 0.35,
+					duration: 0.38,
+					ease: 'sine.inOut',
+					yoyo: true,
+					repeat: -1
+				});
+			}
+		} else if (this.lowLifePulseActive) {
+			this.lowLifePulseActive = false;
+			gsap.killTweensOf(this.lifeBar);
+			gsap.to(this.lifeBar, { alpha: 1, duration: 0.22, ease: 'power2.out' });
+		}
+	}
+
+	private renderSkillPanel() {
+		if (this.char.specialBar >= 3) {
+			this.skillReady.visible = true;
+			this.skillOff.alpha = 0.35;
+
+			if (!this.skillPulseActive) {
+				this.skillPulseActive = true;
+				this.skillReady.alpha = 1;
+				gsap.killTweensOf(this.skillReady);
+				gsap.to(this.skillReady, {
+					alpha: 0.48,
+					duration: 0.52,
+					ease: 'sine.inOut',
+					yoyo: true,
+					repeat: -1
+				});
+			}
+
+			this.skillGlow.alpha = 0.25 + this.skillReady.alpha * 0.16;
+			this.skillStateText.text = 'Ready to cast';
+		} else {
+			if (this.skillPulseActive) {
+				this.skillPulseActive = false;
+				gsap.killTweensOf(this.skillReady);
+			}
+			this.skillReady.visible = false;
+			this.skillReady.alpha = 1;
+			this.skillOff.alpha = 0.92;
+			this.skillGlow.alpha = 0.92;
+			this.skillStateText.text = `Charge ${this.char.specialBar} / 3`;
+		}
+	}
+
+	private renderPotionPanel() {
+		this.potionContainer.alpha = this.char.credits >= this._gameLogicService.POTION_PRICE ? 1 : 0.78;
 	}
 
 	private scaleSpriteToCover(sprite: Sprite, targetWidth: number, targetHeight: number) {
@@ -604,7 +1205,7 @@ export class CharGUI {
 		}
 	}
 
-	public lerp(a1, a2, t) {
+	public lerp(a1: number, a2: number, t: number): number {
 		return a1 * (1 - t) + a2 * t;
 	}
 }

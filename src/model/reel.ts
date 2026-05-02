@@ -66,8 +66,8 @@ export class Reel {
 				blur: new BlurFilter()
 			};
 
-			reel.blur.blurX = 0;
-			reel.blur.blurY = 0;
+			reel.blur.strengthX = 0;
+			reel.blur.strengthY = 0;
 			rc.filters = [];
 
 			for (let j = 0; j < this.slotTextures.length; j++) {
@@ -93,7 +93,7 @@ export class Reel {
 			for (let i = 0; i < this.reelArr.length; i++) {
 				let r = this.reelArr[i];
 
-				r.blur.blurY = (r.position - r.previousPosition) * ticker.deltaTime;
+				r.blur.strengthY = (r.position - r.previousPosition) * ticker.deltaTime;
 				r.previousPosition = r.position;
 
 				for (let j = 0; j < r.symbols.length; j++) {
@@ -160,8 +160,8 @@ export class Reel {
 				}
 			}
 			const blur = new BlurFilter();
-			blur.blurX = 0.85;
-			blur.blurY = 0;
+			blur.strengthX = 0.85;
+			blur.strengthY = 0;
 			this.reelContainer.children[i].filters = [ blur ];
 
 			let extra = 100 * i;

@@ -6,7 +6,11 @@ import { SCENE_LAYOUT } from '../../../rendering/viewport';
 
 export class PayTableGUI {
 	private descStyle = (() => {
-		const g = new FillGradient(0, 0, 0, 1);
+		const g = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		g.addColorStop(0, '#fff6d7').addColorStop(1, '#d9b674');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -25,7 +29,11 @@ export class PayTableGUI {
 	})();
 
 	private badgeStyle = (() => {
-		const g = new FillGradient(0, 0, 0, 1);
+		const g = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		g.addColorStop(0, '#fffdf4').addColorStop(1, '#d7ba82');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -45,7 +53,11 @@ export class PayTableGUI {
 	})();
 
 	private valueStyle = (() => {
-		const g = new FillGradient(0, 0, 0, 1);
+		const g = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		g.addColorStop(0, '#fff8dd').addColorStop(1, '#c8973b');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -113,9 +125,9 @@ export class PayTableGUI {
 			const iconMask = new Graphics();
 			const iconRim = new Graphics();
 			const payIcon = new Sprite(payStrategy.payIcon);
-			const badgeText = new Text(rowText.detail, this.badgeStyle);
-			const payDesc = new Text(rowText.label, this.descStyle);
-			const payValue = new Text(payStrategy.enumIndex.toString(), this.valueStyle);
+			const badgeText = new Text({ text: rowText.detail, style: this.badgeStyle });
+			const payDesc = new Text({ text: rowText.label, style: this.descStyle });
+			const payValue = new Text({ text: payStrategy.enumIndex.toString(), style: this.valueStyle });
 			const coin = new Sprite(getTexture('assets/coin_reward.png'));
 
 			payOptionRegion.x = this.rowFrameX;

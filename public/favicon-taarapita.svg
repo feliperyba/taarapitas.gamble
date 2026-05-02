@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+	<title id="title">Taarapita's Gamble favicon</title>
+	<desc id="desc">A gold ritual coin behind a crimson idol with a blue rune flame.</desc>
+	<defs>
+		<radialGradient id="coinGlow" cx="50%" cy="40%" r="65%">
+			<stop offset="0%" stop-color="#fff1b7" />
+			<stop offset="58%" stop-color="#f2ba4f" />
+			<stop offset="100%" stop-color="#bf6d1d" />
+		</radialGradient>
+		<linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+			<stop offset="0%" stop-color="#ffe29a" />
+			<stop offset="100%" stop-color="#7e3c14" />
+		</linearGradient>
+		<linearGradient id="idolFill" x1="50%" y1="0%" x2="50%" y2="100%">
+			<stop offset="0%" stop-color="#ff8150" />
+			<stop offset="52%" stop-color="#c13d21" />
+			<stop offset="100%" stop-color="#71180d" />
+		</linearGradient>
+		<linearGradient id="idolEdge" x1="0%" y1="0%" x2="100%" y2="100%">
+			<stop offset="0%" stop-color="#ffbf6b" />
+			<stop offset="100%" stop-color="#55200b" />
+		</linearGradient>
+		<linearGradient id="runeTrail" x1="50%" y1="0%" x2="50%" y2="100%">
+			<stop offset="0%" stop-color="#9ce7ff" />
+			<stop offset="55%" stop-color="#3cb9f6" />
+			<stop offset="100%" stop-color="#0a5791" />
+		</linearGradient>
+		<filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+			<feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#120401" flood-opacity="0.5" />
+		</filter>
+	</defs>
+
+	<g filter="url(#softShadow)">
+		<circle cx="32" cy="28" r="25" fill="url(#coinGlow)" stroke="url(#coinRim)" stroke-width="3" />
+		<circle cx="32" cy="28" r="21.5" fill="none" stroke="#ffd98a" stroke-opacity="0.45" stroke-width="1.5" />
+
+		<path d="M22 12c-4 2-7 6-8 11 4-1 7-2 10-5 1-2 2-4 2-6-1-1-2-1-4 0Z" fill="#9d2f16" />
+		<path d="M42 12c4 2 7 6 8 11-4-1-7-2-10-5-1-2-2-4-2-6 1-1 2-1 4 0Z" fill="#9d2f16" />
+
+		<path d="M25 13 32 9l7 4 5 10-2 18c-.6 5.5-4.6 9.4-10 9.4S22.6 46.5 22 41l-2-18 5-10Z" fill="url(#idolFill)" stroke="url(#idolEdge)" stroke-width="1.7" stroke-linejoin="round" />
+		<path d="M22.5 20h19" stroke="#70200f" stroke-width="1.3" stroke-linecap="round" opacity="0.8" />
+		<path d="M26.5 14.5 32 17l5.5-2.5" fill="none" stroke="#ffbf6b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" />
+
+		<path d="M19 24 14 21l-3 5 5 4 6-2 1-7Z" fill="#d54d29" stroke="#6a1e0f" stroke-width="1.1" stroke-linejoin="round" />
+		<path d="M45 24l5-3 3 5-5 4-6-2-1-7Z" fill="#d54d29" stroke="#6a1e0f" stroke-width="1.1" stroke-linejoin="round" />
+		<path d="M20 30 13 28l1 5 8 2Z" fill="#a02b15" opacity="0.9" />
+		<path d="M44 30l7-2-1 5-8 2Z" fill="#a02b15" opacity="0.9" />
+
+		<path d="M26 26h4v6h-4z" rx="1" fill="#ffd98a" />
+		<path d="M34 26h4v6h-4z" rx="1" fill="#ffd98a" />
+		<path d="M28.5 37c2 1.8 4.5 1.8 7 0" fill="none" stroke="#ffd98a" stroke-width="1.9" stroke-linecap="round" />
+		<path d="M30 21h4" stroke="#ffd98a" stroke-width="1.4" stroke-linecap="round" opacity="0.9" />
+
+		<path d="M32 42c2.8 3.4 2.5 6.2-.2 8.8-1.5 1.4-1.4 3 .5 4.9-3.8-1.2-5.3-3.9-4.1-6.7 1.2-2.7.8-4.8-1.4-6.3 2.3.4 4 .1 5.2-.7Z" fill="url(#runeTrail)" stroke="#073c6d" stroke-width="1" stroke-linejoin="round" />
+		<path d="M31.6 49.8 34 52l-2.6 1.8 1.8 2.8-3.6-.4-1.2 3.1-1.4-3.2-3.3-.3 2.4-2.6-1.1-3.2 3 1 2.3-2.2Z" fill="url(#runeTrail)" opacity="0.95" />
+		<circle cx="32" cy="60" r="2.2" fill="#4dd2ff" opacity="0.95" />
+	</g>
+</svg>

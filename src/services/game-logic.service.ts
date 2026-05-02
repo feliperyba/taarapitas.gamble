@@ -73,7 +73,11 @@ export class GameLogicService {
 	public showEndGameMsg(char: Char, sceneRoot: Container) {
 		if (this.msgContainer.visible == false) {
 			this.msgContainer.removeChildren();
-			const grad = new FillGradient(0, 0, 0, 1);
+			const grad = new FillGradient({
+				start: { x: 0, y: 0 },
+				end: { x: 0, y: 1 },
+				textureSpace: 'local'
+			});
 			grad.addColorStop(0, '#ffffff').addColorStop(1, '#ff0000');
 			const style = new TextStyle({
 				fontFamily: 'Primitive',
@@ -91,7 +95,11 @@ export class GameLogicService {
 				wordWrap: true,
 				wordWrapWidth: 400
 			});
-			const bigGrad = new FillGradient(0, 0, 0, 1);
+			const bigGrad = new FillGradient({
+				start: { x: 0, y: 0 },
+				end: { x: 0, y: 1 },
+				textureSpace: 'local'
+			});
 			bigGrad.addColorStop(0, '#ffffff').addColorStop(1, '#ff0000');
 			const Bigstyle = new TextStyle({
 				fontFamily: 'Primitive',
@@ -117,12 +125,12 @@ export class GameLogicService {
 			background.height = SCENE_LAYOUT.overlay.height;
 
 			let string = 'You Lose!';
-			const loseText = new Text(string, Bigstyle);
+			const loseText = new Text({ text: string, style: Bigstyle });
 			loseText.x = SCENE_LAYOUT.overlay.width / 2 - loseText.width / 2;
 			loseText.y = 128;
 
 			string = 'You have survived for ' + char.roundsAlive.toString() + ' rounds';
-			const text = new Text(string, style);
+			const text = new Text({ text: string, style });
 			text.x = SCENE_LAYOUT.overlay.width / 2 - text.width / 2;
 			text.y = 238;
 

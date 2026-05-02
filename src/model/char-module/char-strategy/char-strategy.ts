@@ -6,12 +6,17 @@ import { getTexture } from '../../../rendering/assets';
 
 export namespace CharStrategy {
 	export interface CharStrategy {
+		NAME: string;
 		create(target?: any): Char;
 		useSkill(target?: any): void;
 	}
 
 	export class CharContext {
 		constructor(private strategy: CharStrategy, public target?: any) {}
+
+		public get name(): string {
+			return this.strategy.NAME;
+		}
 
 		public createCharClass(): Char {
 			return this.strategy.create(this.target);

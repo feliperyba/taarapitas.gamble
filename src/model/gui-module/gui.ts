@@ -20,11 +20,15 @@ export class GUI {
 	public readonly modalLayer = new Container();
 
 	private reelMask?: Graphics;
-	private actionStateText = new Text();
-	private actionDetailText = new Text();
+	private actionStateText = new Text({ text: '' });
+	private actionDetailText = new Text({ text: '' });
 
 	private DEFAULT_STYLE = (() => {
-		const g = new FillGradient(0, 0, 0, 1);
+		const g = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		g.addColorStop(0, '#ffffff').addColorStop(1, '#cccccc');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -46,7 +50,11 @@ export class GUI {
 	})();
 
 	private actionLabelStyle = (() => {
-		const g = new FillGradient(0, 0, 0, 1);
+		const g = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		g.addColorStop(0, '#fff1c8').addColorStop(1, '#d6a44d');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -68,7 +76,11 @@ export class GUI {
 	})();
 
 	private actionDetailStyle = (() => {
-		const g = new FillGradient(0, 0, 0, 1);
+		const g = new FillGradient({
+			start: { x: 0, y: 0 },
+			end: { x: 0, y: 1 },
+			textureSpace: 'local'
+		});
 		g.addColorStop(0, '#fff6db').addColorStop(1, '#c5a067');
 		return new TextStyle({
 			fontFamily: 'Primitive',
@@ -369,12 +381,12 @@ export class GUI {
 			.stroke({ color: 0xe3bb73, alpha: 0.12, width: 2 });
 		accent.roundRect(region.x + 16, region.y + 16, region.width - 32, 18, 10).fill({ color: 0xf3d3a0, alpha: 0.08 });
 
-		this.actionStateText = new Text('Ready', this.actionLabelStyle);
+		this.actionStateText = new Text({ text: 'Ready', style: this.actionLabelStyle });
 		this.actionStateText.anchor.set(0.5, 0);
 		this.actionStateText.x = region.centerX;
 		this.actionStateText.y = region.y + 42;
 
-		this.actionDetailText = new Text('The altar waits for your next fight.', this.actionDetailStyle);
+		this.actionDetailText = new Text({ text: 'The altar waits for your next fight.', style: this.actionDetailStyle });
 		this.actionDetailText.anchor.set(0.5, 0);
 		this.actionDetailText.x = region.centerX;
 		this.actionDetailText.y = region.y + 96;
