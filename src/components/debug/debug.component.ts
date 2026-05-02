@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DebuggerService } from '../../services/debugger.service';
@@ -8,7 +9,7 @@ import { DebugConfig, DebugReelValue } from '../../model/interfaces';
 	selector: 'app-debug',
 	templateUrl: './debug.component.html',
 	styleUrls: [ './debug.component.scss' ],
-	imports: [FormsModule],
+	imports: [CommonModule, FormsModule],
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DebuggerComponent implements OnInit {

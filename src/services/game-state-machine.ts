@@ -12,8 +12,10 @@ export class GameStateMachine {
 
 	public transition(newState: GameStates): void {
 		if (this.currentState === newState) return;
+
 		this.currentState = newState;
 		const listeners = this.listeners.get(newState);
+
 		if (listeners) {
 			listeners.forEach(fn => fn());
 		}
@@ -23,8 +25,10 @@ export class GameStateMachine {
 		if (!this.listeners.has(state)) {
 			this.listeners.set(state, new Set());
 		}
+
 		const set = this.listeners.get(state)!;
 		set.add(callback);
+		
 		return () => set.delete(callback);
 	}
 }

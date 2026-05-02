@@ -15,7 +15,6 @@ import {
 	AnyBarStrategy
 } from './pay-table-strategy/pay-table-strategy';
 import { PayTableGUI } from './pay-table-gui/pay-table-gui';
-import { COMBINATIONS } from './combinations';
 
 export { COMBINATIONS } from './combinations';
 
