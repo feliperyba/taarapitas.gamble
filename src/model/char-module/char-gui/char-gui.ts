@@ -15,6 +15,8 @@ export class CharGUI {
 	public lifeBar: Sprite;
 	private lifeBarHealOverlay: Sprite;
 	private heroAltarContainer = new Container();
+	private lifeBarFillContainer!: Container;
+	private lifeBarDamageTrailContainer!: Container;
 	private heroFrame: Sprite;
 	private heroFrameFlash: Sprite;
 	private lifeBarMaxWidth = 0;
@@ -40,6 +42,8 @@ export class CharGUI {
 	private skillOff: Sprite;
 	private skillGlow: Graphics;
 	private potionContainer: Container;
+	private lifeBarMask!: Graphics;
+	private damageTrailMask!: Graphics;
 	private lifeBarDamageTrail!: Sprite;
 	private lifeBarX = 0;
 	private lifeBarY = 0;
@@ -267,18 +271,46 @@ export class CharGUI {
 		label.x = lifeBarX + lifeBarWidth / 2;
 		label.y = heroCrest.y + Math.round(130 * frameScale);
 
+		this.lifeBarMask = new Graphics();
+		this.configureBarMask(this.lifeBarMask);
+
+		this.damageTrailMask = new Graphics();
+		this.configureBarMask(this.damageTrailMask);
+
 		this.lifeBarDamageTrail = new Sprite(getTexture('assets/life_bar.png'));
 		this.lifeBarDamageTrail.anchor.set(0, 0);
+		this.lifeBarDamageTrail.x = 0;
+		this.lifeBarDamageTrail.y = 0;
+		this.lifeBarDamageTrail.width = lifeBarWidth;
+		this.lifeBarDamageTrail.height = lifeBarHeight;
 		this.lifeBarDamageTrail.tint = 0xb03030;
 		this.lifeBarDamageTrail.alpha = 0;
+		this.lifeBarDamageTrailContainer = new Container();
+		this.lifeBarDamageTrailContainer.position.set(lifeBarX, lifeBarY);
+		this.lifeBarDamageTrailContainer.addChild(this.lifeBarDamageTrail);
+		this.lifeBarDamageTrailContainer.addChild(this.damageTrailMask);
+		this.lifeBarDamageTrailContainer.mask = this.damageTrailMask;
 
 		this.lifeBar = new Sprite(getTexture('assets/life_bar.png'));
 		this.lifeBar.anchor.set(0, 0);
+		this.lifeBar.x = 0;
+		this.lifeBar.y = 0;
+		this.lifeBar.width = lifeBarWidth;
+		this.lifeBar.height = lifeBarHeight;
 
 		this.lifeBarHealOverlay = new Sprite(Texture.WHITE);
-		this.lifeBarHealOverlay.anchor.set(0, 0);
+		this.lifeBarHealOverlay.x = 0;
+		this.lifeBarHealOverlay.y = 0;
+		this.lifeBarHealOverlay.width = lifeBarWidth;
+		this.lifeBarHealOverlay.height = lifeBarHeight;
 		this.lifeBarHealOverlay.alpha = 0;
 		this.lifeBarHealOverlay.tint = 0x46ff8d;
+		this.lifeBarFillContainer = new Container();
+		this.lifeBarFillContainer.position.set(lifeBarX, lifeBarY);
+		this.lifeBarFillContainer.addChild(this.lifeBar);
+		this.lifeBarFillContainer.addChild(this.lifeBarHealOverlay);
+		this.lifeBarFillContainer.addChild(this.lifeBarMask);
+		this.lifeBarFillContainer.mask = this.lifeBarMask;
 
 		this.lifeText = new Text({ text: `${this.char.life}/${this.char.totalLife}`, style: this.hudValueStyle });
 		this.lifeText.anchor.set(0.5);
@@ -292,25 +324,15 @@ export class CharGUI {
 		this.hitBar.y = portraitCenterY;
 		this.hitBar.scale.x = this.hitBar.scale.y = Math.min(150 / this.hitBar.width, 150 / this.hitBar.height);
 
-		this.applyBarSpriteRect(this.lifeBarDamageTrail, initialPercent);
-		this.applyBarSpriteRect(this.lifeBar, initialPercent);
-		this.applyBarSpriteRect(this.lifeBarHealOverlay, initialPercent);
-		this.lifeBarDamageTrail.height = lifeBarHeight;
-		this.lifeBar.height = lifeBarHeight;
-		this.lifeBarHealOverlay.height = lifeBarHeight;
+		this.heroAltarContainer.addChild(this.lifeBarDamageTrailContainer);
+		this.heroAltarContainer.addChild(this.lifeBarFillContainer);
 
-		this.heroAltarContainer.addChild(this.lifeBarDamageTrail);
-		this.heroAltarContainer.addChild(this.lifeBar);
-		this.heroAltarContainer.addChild(this.lifeBarHealOverlay);
+		this.lifeBarMask.scale.x = initialPercent;
+		this.damageTrailMask.scale.x = initialPercent;
+
 		this.heroAltarContainer.addChild(this.lifeText);
 		this.heroAltarContainer.addChild(label);
 		this.heroAltarContainer.addChild(this.hitBar);
-	}
-
-	private applyBarSpriteRect(sprite: Sprite, percent: number) {
-		const visibleWidth = this.lifeBarMaxWidth * Math.max(0, Math.min(1, percent));
-		sprite.x = this.lifeBarX + this.lifeBarMaxWidth - visibleWidth;
-		sprite.width = visibleWidth;
 	}
 
 	private updateHeroAltarMotion() {
@@ -375,34 +397,34 @@ export class CharGUI {
 	private playDamageLifeTween(percent: number) {
 		const oldPercent = this.lifeBarState.percent;
 		const clampedPercent = Math.max(0, Math.min(1, percent));
-		gsap.killTweensOf([this.lifeBarState, this.lifeBarHealOverlay, this.healPulseState, this.damageTrailState]);
+		const damageDelta = Math.abs(oldPercent - clampedPercent);
+		gsap.killTweensOf([this.lifeBarState, this.lifeBarMask.scale, this.lifeBarHealOverlay, this.healPulseState, this.damageTrailState, this.damageTrailMask.scale, this.lifeBarDamageTrail, this.lifeText.scale]);
 		this.lifeBarHealOverlay.alpha = 0;
 
-		const cropTimeline = gsap
+		gsap
 			.timeline({ overwrite: true })
-			.to(this.lifeBarState, { percent: Math.min(1, oldPercent + 0.01), duration: 0.03, ease: 'power1.out' })
-			.to(this.lifeBarState, { percent: clampedPercent, duration: 0.22, ease: 'power3.out' });
+			.to(this.lifeBarMask.scale, { x: Math.min(1, oldPercent + 0.02), duration: 0.04, ease: 'power1.out' })
+			.to(this.lifeBarMask.scale, { x: clampedPercent, duration: 0.32, ease: 'power4.inOut' });
 
-		const cropDuration = cropTimeline.totalDuration();
+		this.lifeBarState.percent = clampedPercent;
 
 		gsap.to(this.lifeBarState, {
 			displayedLife: this.char.life,
-			duration: cropDuration,
+			duration: 0.36,
 			ease: 'power2.out',
 			overwrite: true
 		});
 
-		this.damageTrailState.percent = clampedPercent;
-		this.damageTrailState.alpha = 0;
+		gsap.fromTo(this.lifeText.scale, { x: 1.35, y: 1.35 }, { x: 1, y: 1, duration: 0.4, ease: 'back.out(3)' });
+
+		this.damageTrailMask.scale.x = oldPercent;
+		this.lifeBarDamageTrail.alpha = 0.85;
+		this.damageTrailState.alpha = 0.85;
 		gsap
 			.timeline({ overwrite: true })
-			.set(this.damageTrailState, { percent: oldPercent, alpha: 0.55 }, cropDuration)
-			.to(this.damageTrailState, {
-				percent: clampedPercent,
-				alpha: 0,
-				duration: 0.78,
-				ease: 'power2.out'
-			}, cropDuration);
+			.to(this.damageTrailMask.scale, { x: clampedPercent, duration: 1.1, ease: 'power2.out' })
+			.to(this.lifeBarDamageTrail, { alpha: 0, duration: 1.1, ease: 'power2.in' }, 0);
+		gsap.to(this.damageTrailState, { alpha: 0, duration: 1.1, ease: 'power2.in', overwrite: true });
 	}
 
 	private playHealLifeTween(percent: number) {
@@ -410,13 +432,16 @@ export class CharGUI {
 		const percentGain = Math.max(0, clampedPercent - this.lifeBarState.percent);
 		const overshootPercent = Math.min(1, clampedPercent + Math.max(0.05, percentGain * 0.28));
 
-		gsap.killTweensOf([this.lifeBarState, this.heroAltarContainer.scale, this.lifeText.scale, this.heroFrameFlash, this.healPulseState, this.lifeBarHealOverlay, this.damageTrailState]);
+		gsap.killTweensOf([this.lifeBarState, this.lifeBarMask.scale, this.heroAltarContainer.scale, this.lifeText.scale, this.heroFrameFlash, this.healPulseState, this.lifeBarHealOverlay, this.damageTrailState, this.damageTrailMask.scale, this.lifeBarDamageTrail]);
 		this.damageTrailState.alpha = 0;
+		this.lifeBarDamageTrail.alpha = 0;
 
 		gsap
 			.timeline({ overwrite: true })
-			.to(this.lifeBarState, { percent: overshootPercent, duration: 0.38, ease: 'power2.out' })
-			.to(this.lifeBarState, { percent: clampedPercent, duration: 0.92, ease: 'back.out(1.4)' });
+			.to(this.lifeBarMask.scale, { x: overshootPercent, duration: 0.38, ease: 'power2.out' })
+			.to(this.lifeBarMask.scale, { x: clampedPercent, duration: 0.92, ease: 'back.out(1.4)' });
+
+		this.lifeBarState.percent = clampedPercent;
 
 		gsap.to(this.lifeBarState, {
 			displayedLife: this.char.life,
@@ -1124,14 +1149,7 @@ export class CharGUI {
 	}
 
 	private renderLifeBar() {
-		const percent = Math.max(0, Math.min(1, this.lifeBarState.percent));
-		this.applyBarSpriteRect(this.lifeBar, percent);
-		this.applyBarSpriteRect(this.lifeBarHealOverlay, percent);
-
-		const trailPercent = Math.max(0, Math.min(1, this.damageTrailState.percent));
-		this.applyBarSpriteRect(this.lifeBarDamageTrail, trailPercent);
 		this.lifeBarDamageTrail.alpha = this.damageTrailState.alpha;
-
 		this.lifeText.text = `${Math.round(this.lifeBarState.displayedLife)}/${this.char.totalLife}`;
 
 		if (this.char.life <= 5 && this.char.life > 0) {
@@ -1151,6 +1169,11 @@ export class CharGUI {
 			gsap.killTweensOf(this.lifeBar);
 			gsap.to(this.lifeBar, { alpha: 1, duration: 0.22, ease: 'power2.out' });
 		}
+	}
+
+	private configureBarMask(mask: Graphics) {
+		mask.rect(0, 0, this.lifeBarMaxWidth, this.lifeBarHeight).fill({ color: 0xffffff, alpha: 1 });
+		mask.alpha = 0.001;
 	}
 
 	private renderSkillPanel() {
