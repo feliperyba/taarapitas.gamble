@@ -1,122 +1,126 @@
 import { Char } from '../../../model/char-module/char';
 import { Texture } from 'pixi.js';
-import { GameStates } from '../../../services/game-logic.service';
+import { GameStates } from '../../game-states';
 
 import { getTexture } from '../../../rendering/assets';
 import type { Reel } from '../../../model/reel';
-import type { CharTargetType } from '../../../model/interfaces';
+import { CharTargetType } from '../../../model/interfaces';
+import { arrayRotateOne } from '../../math-utils';
 
 export type SkillTarget = Char | Reel;
 
-export interface CharStrategy {
+export interface CharInfo {
 	readonly NAME: string;
 	readonly PORTRAIT: Texture;
 	readonly BACKGROUND: Texture;
 	readonly LIFE: number;
 	readonly CREDITS: number;
 	readonly SKILL_DESC: string;
-	readonly TARGET_TYPE: CharTargetType;
-	create(target?: SkillTarget): Char;
-	useSkill(target?: SkillTarget): void;
 }
 
-export class CharContext {
-	constructor(private readonly strategy: CharStrategy, public target?: SkillTarget) {}
+export interface CharFactory {
+	create(): Char;
+}
+
+export interface CharSkillBehavior<T extends SkillTarget> {
+	readonly TARGET_TYPE: CharTargetType;
+	useSkill(target: T): void;
+}
+
+export type CharStrategy<T extends SkillTarget = SkillTarget> = CharInfo & CharFactory & CharSkillBehavior<T>;
+
+export class CharContext<T extends SkillTarget = SkillTarget> {
+	constructor(private readonly strategy: CharStrategy<T>, public target?: T) {}
 
 	public get name(): string {
 		return this.strategy.NAME;
 	}
 
 	public createCharClass(): Char {
-		return this.strategy.create(this.target);
+		return this.strategy.create();
 	}
 
-	public useClassSkill(target?: SkillTarget) {
-		return this.strategy.useSkill(target);
+	public useClassSkill(target?: T): void {
+		if (target !== undefined) {
+			this.strategy.useSkill(target);
+		}
 	}
 }
 
-export class WarriorClassStrategy implements CharStrategy {
+export class WarriorClassStrategy implements CharStrategy<Char> {
 	public readonly NAME = 'Warrior';
 	public readonly PORTRAIT: Texture = getTexture('assets/warrior.png');
 	public readonly BACKGROUND: Texture = getTexture('assets/warrior_background.png');
 	public readonly LIFE = 25;
 	public readonly CREDITS = 35;
 	public readonly SKILL_DESC = 'Warrior Skill creates a shield protector that last one hit';
-	public readonly TARGET_TYPE: CharTargetType = 'Char';
+	public readonly TARGET_TYPE = CharTargetType.Char;
 
 	public create(): Char {
-		const char = new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
-		return char;
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
 	}
-	public useSkill(target: SkillTarget) {
-		(target as Char).setProtected(true);
+	public useSkill(target: Char): void {
+		target.setProtected(true);
 	}
 }
 
-export class BerserkerClassStrategy implements CharStrategy {
+export class BerserkerClassStrategy implements CharStrategy<Reel> {
 	public readonly NAME = 'Berserker';
 	public readonly PORTRAIT: Texture = getTexture('assets/berserker.png');
 	public readonly BACKGROUND: Texture = getTexture('assets/berserker_background.png');
 	public readonly LIFE = 30;
 	public readonly CREDITS = 20;
 	public readonly SKILL_DESC = 'Berserker Skill Makes every Spinner roll 2 slots';
-	public readonly TARGET_TYPE: CharTargetType = 'Reel';
+	public readonly TARGET_TYPE = CharTargetType.Reel;
 
 	public create(): Char {
-		const char = new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
-		return char;
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
 	}
-	public useSkill(target: SkillTarget) {
-		const reel = target as Reel;
-		for (const r of reel.reelArr) {
+	public useSkill(target: Reel): void {
+		for (const r of target.reelArr) {
 			for (let i = 0; i < 2; i++) {
-				reel.arrayRotateOne(r.symbolsPosition, true);
+				arrayRotateOne(r.symbolsPosition, true);
 			}
 		}
-		reel.setGameState(GameStates.START);
+		target.setGameState(GameStates.START);
 	}
 }
 
-export class ClericClassStrategy implements CharStrategy {
+export class ClericClassStrategy implements CharStrategy<Char> {
 	public readonly NAME = 'Cleric';
 	public readonly PORTRAIT: Texture = getTexture('assets/cleric.png');
 	public readonly BACKGROUND: Texture = getTexture('assets/cleric_background.png');
 	public readonly LIFE = 15;
 	public readonly CREDITS = 10;
 	public readonly SKILL_DESC = 'Cleric Skill Recover 10 points of life';
-	public readonly TARGET_TYPE: CharTargetType = 'Char';
+	public readonly TARGET_TYPE = CharTargetType.Char;
 
 	public create(): Char {
-		const char = new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
-		return char;
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
 	}
-	public useSkill(target: SkillTarget) {
-		const charTarget = target as Char;
-		charTarget.heal(10);
+	public useSkill(target: Char): void {
+		target.heal(10);
 	}
 }
 
-export class MageClassStrategy implements CharStrategy {
+export class MageClassStrategy implements CharStrategy<Reel> {
 	public readonly NAME = 'Mage';
 	public readonly PORTRAIT: Texture = getTexture('assets/mage.png');
 	public readonly BACKGROUND: Texture = getTexture('assets/mage_background.png');
 	public readonly LIFE = 10;
 	public readonly CREDITS = 100;
 	public readonly SKILL_DESC = 'Mage Skill Makes every Spinner roll slots  by the number of their locations';
-	public readonly TARGET_TYPE: CharTargetType = 'Reel';
+	public readonly TARGET_TYPE = CharTargetType.Reel;
 
 	public create(): Char {
-		const char = new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
-		return char;
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
 	}
-	public useSkill(target: SkillTarget) {
-		const reel = target as Reel;
-		for (let i = 0; i < reel.reelArr.length - 1; i++) {
+	public useSkill(target: Reel): void {
+		for (let i = 0; i < target.reelArr.length - 1; i++) {
 			for (let j = 0; j < i + 1; j++) {
-				reel.arrayRotateOne(reel.reelArr[i].symbolsPosition, true);
+				arrayRotateOne(target.reelArr[i].symbolsPosition, true);
 			}
 		}
-		reel.setGameState(GameStates.START);
+		target.setGameState(GameStates.START);
 	}
 }

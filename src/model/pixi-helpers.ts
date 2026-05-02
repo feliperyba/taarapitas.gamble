@@ -1,4 +1,4 @@
-import { Text, TextStyle, FillGradient } from 'pixi.js';
+import { Text, TextStyle, FillGradient, Graphics } from 'pixi.js';
 
 export interface GradientTextStyleOptions {
 	fillStops: [string, string];
@@ -60,4 +60,33 @@ export function createText(opts: CreateTextOptions): Text {
 	if (opts.x != null) text.x = opts.x;
 	if (opts.y != null) text.y = opts.y;
 	return text;
+}
+
+export function fitTextToWidth(text: Text, maxWidth: number, minScale: number): void {
+	text.scale.set(1);
+	if (text.width > maxWidth) {
+		const nextScale = Math.max(minScale, maxWidth / text.width);
+		text.scale.set(nextScale);
+	}
+}
+
+export interface PanelLayout {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+export function buildPanelGraphics(panel: Graphics, trim: Graphics, layout: PanelLayout): void {
+	panel
+		.roundRect(layout.x, layout.y, layout.width, layout.height, 24)
+		.fill({ color: 0x150806, alpha: 0.88 })
+		.stroke({ color: 0x94632f, alpha: 0.24, width: 3 });
+	panel
+		.roundRect(layout.x + 10, layout.y + 10, layout.width - 20, layout.height - 20, 20)
+		.fill({ color: 0x090302, alpha: 0.72 })
+		.stroke({ color: 0xe3bb73, alpha: 0.1, width: 2 });
+	trim
+		.roundRect(layout.x + 16, layout.y + 14, layout.width - 32, 16, 8)
+		.fill({ color: 0xf7d7a5, alpha: 0.06 });
 }

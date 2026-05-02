@@ -1,4 +1,3 @@
-import { Injectable } from '@angular/core';
 import { Container, Sprite, Text } from 'pixi.js';
 import { Button } from '../model/gui-module/button';
 import { createGradientTextStyle } from '../model/pixi-helpers';
@@ -17,7 +16,6 @@ const SURVIVAL_TEXT_Y = 238;
 const RESTART_BTN_X_OFFSET = 124;
 const RESTART_BTN_Y = 352;
 
-@Injectable()
 export class GameOverOverlay {
 	public readonly container = new Container();
 	private initialized = false;

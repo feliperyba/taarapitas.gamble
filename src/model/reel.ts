@@ -1,8 +1,10 @@
-import { Sprite, Application, Container, BlurFilter, Texture } from 'pixi.js';
-import { GameLogicService, GameStates } from '../services/game-logic.service';
+import { Sprite, Application, Container, Texture } from 'pixi.js';
+import { GameStates } from './game-states';
+import type { DebugConfig } from './interfaces';
 import { getTexture } from '../rendering/assets';
 import { ReelAnimator } from './reel-animator';
 import { REEL_VALUES, type ReelData } from './reel-types';
+
 
 export { REEL_POSITIONS, REEL_VALUES, REEL_POSITION_INDEX } from './reel-types';
 export type { ReelData } from './reel-types';
@@ -25,7 +27,12 @@ export class Reel {
 	private readonly slotTextures: Record<string, Texture> = {};
 	private readonly animator: ReelAnimator;
 
-	constructor(private readonly app: Application, private readonly _gameLogicService: GameLogicService) {
+	constructor(
+		private readonly app: Application,
+		private readonly onSpinComplete: () => void,
+		private readonly getDebugConfig: () => DebugConfig | undefined,
+		private readonly onStateTransition?: (state: GameStates) => void
+	) {
 		this.slotTextures = {
 			[REEL_VALUES.X3BAR]: getTexture('assets/3xBAR.png'),
 			[REEL_VALUES.BAR]: getTexture('assets/BAR.png'),
@@ -33,7 +40,9 @@ export class Reel {
 			[REEL_VALUES.SEVEN]: getTexture('assets/7.png'),
 			[REEL_VALUES.CHERRY]: getTexture('assets/Cherry.png')
 		};
+
 		this.setContainers();
+
 		this.animator = new ReelAnimator(
 			this.app,
 			this.reelContainer,
@@ -41,8 +50,8 @@ export class Reel {
 			this.slotTextures,
 			this.SYMBOL_SIZE,
 			this.DEFAULT_VAL_ORDER,
-			() => { this._gameLogicService.state = GameStates.RESULTS; },
-			() => this._gameLogicService.debugConfig
+			this.onSpinComplete,
+			this.getDebugConfig
 		);
 	}
 
@@ -51,25 +60,21 @@ export class Reel {
 		this.reelContainer.height = this.SYMBOL_SIZE / 2 * 10;
 
 		for (let i = 0; i < this.SLOT_NUMBER; i++) {
-			const rc = new Container();
-			rc.x = i * this.REEL_WIDTH;
+			const reelContainer = new Container();
+			reelContainer.x = i * this.REEL_WIDTH;
 
-			this.reelContainer.addChild(rc);
+			this.reelContainer.addChild(reelContainer);
 
 			const reel: ReelData = {
-				container: rc,
+				container: reelContainer,
 				symbols: [],
 				symbolsPosition: this.DEFAULT_VAL_ORDER.slice(),
 				position: 0,
 				previousPosition: 0,
 				randomSymbolValue: REEL_VALUES.X3BAR,
 				randomPosValue: 0,
-				blur: new BlurFilter()
+				blur: { strengthX: 0, strengthY: 0 }
 			};
-
-			reel.blur.strengthX = 0;
-			reel.blur.strengthY = 0;
-			rc.filters = [];
 
 			for (let j = 0; j < this.DEFAULT_VAL_ORDER.length; j++) {
 				const symbol = new Sprite(this.slotTextures[this.DEFAULT_VAL_ORDER[j]]);
@@ -79,9 +84,11 @@ export class Reel {
 					this.SYMBOL_SIZE / symbol.width,
 					this.SYMBOL_SIZE / symbol.height
 				);
+
 				symbol.x = Math.round((this.SYMBOL_SIZE - symbol.width) / 2);
 				reel.symbols.push(symbol);
-				rc.addChild(symbol);
+				
+				reelContainer.addChild(symbol);
 			}
 
 			this.reelArr.push(reel);
@@ -94,18 +101,10 @@ export class Reel {
 
 	public destroy(): void {
 		this.animator.destroy();
-		for (const reel of this.reelArr) {
-			reel.blur.destroy();
-		}
 		this.reelContainer.destroy({ children: true });
 	}
 
-	public arrayRotateOne(arr: REEL_VALUES[], reverse: boolean): void {
-		if (reverse) arr.unshift(arr.pop()!);
-		else arr.push(arr.shift()!);
-	}
-
 	public setGameState(state: GameStates): void {
-		this._gameLogicService.stateMachine.transition(state);
+		this.onStateTransition?.(state);
 	}
 }

@@ -6,7 +6,7 @@ const DISABLED_TEXT_ALPHA = 0.86;
 
 export class Button {
 	public readonly btnContainer = new Container();
-	public readonly Btn!: Sprite;
+	public readonly btn!: Sprite;
 	public readonly btnText!: Text;
 	private disabled = false;
 	private hovered = false;
@@ -23,8 +23,8 @@ export class Button {
 	) {
 		this.btnContainer.hitArea = new Rectangle(0, 0, containerWidth, containerHeight);
 
-		this.Btn = new Sprite(textureBtn);
-		this.Btn.anchor.set(0.5);
+		this.btn = new Sprite(textureBtn);
+		this.btn.anchor.set(0.5);
 
 		this.btnContainer
 			.on('pointerover', () => {
@@ -55,7 +55,7 @@ export class Button {
 		this.btnText.x = this.containerWidth / 2;
 		this.btnText.y = this.containerHeight * BUTTON_TEXT_Y_RATIO;
 
-		this.btnContainer.addChild(this.Btn);
+		this.btnContainer.addChild(this.btn);
 		this.btnContainer.addChild(this.btnText);
 
 		this.btnContainer.eventMode = 'static';
@@ -63,7 +63,7 @@ export class Button {
 		this.updateTexture();
 	}
 
-	private updateTexture() {
+	private updateTexture(): void {
 		let nextTexture = this.textureBtn;
 
 		if (this.disabled) {
@@ -74,21 +74,21 @@ export class Button {
 			nextTexture = this.textureBtnOver;
 		}
 
-		this.Btn.texture = nextTexture;
+		this.btn.texture = nextTexture;
 		this.layoutButtonSprite(nextTexture);
 	}
 
-	private layoutButtonSprite(texture: Texture) {
+	private layoutButtonSprite(texture: Texture): void {
 		const sourceWidth = texture.orig.width || texture.width;
 		const sourceHeight = texture.orig.height || texture.height;
 		const scaleX = this.containerWidth / sourceWidth;
 		const scaleY = this.containerHeight / sourceHeight;
 
-		this.Btn.scale.set(scaleX, scaleY);
-		this.Btn.position.set(this.containerWidth / 2, this.containerHeight / 2);
+		this.btn.scale.set(scaleX, scaleY);
+		this.btn.position.set(this.containerWidth / 2, this.containerHeight / 2);
 	}
 
-	public setDisabled(disabled: boolean) {
+	public setDisabled(disabled: boolean): void {
 		if (this.disabled === disabled) {
 			return;
 		}

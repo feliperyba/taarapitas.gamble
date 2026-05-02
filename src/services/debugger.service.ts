@@ -1,13 +1,13 @@
 import { Injectable } from '@angular/core';
-import { Subject, BehaviorSubject } from 'rxjs';
+import { ReplaySubject } from 'rxjs';
 import { DebugConfig } from '../model/interfaces';
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class DebuggerService {
-	private readonly debugConfigValue: Subject<DebugConfig | null> = new BehaviorSubject<DebugConfig | null>(null);
-	readonly debugConfigValue$ = this.debugConfigValue.asObservable();
+	private readonly _debugConfig$: ReplaySubject<DebugConfig> = new ReplaySubject<DebugConfig>(1);
+	readonly debugConfig$ = this._debugConfig$.asObservable();
 
-	announceValue(value: DebugConfig) {
-		this.debugConfigValue.next(value);
+	announceDebugConfig(value: DebugConfig): void {
+		this._debugConfig$.next(value);
 	}
 }

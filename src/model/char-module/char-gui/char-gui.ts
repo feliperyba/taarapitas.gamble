@@ -27,6 +27,7 @@ export class CharGUI {
 	private previousLife = 0;
 	private previousSpecialBar = 0;
 	private previousUsingSkill = false;
+	private dirty = true;
 	private tickerCallback: ((ticker: { deltaMS: number }) => void) | null = null;
 
 	constructor(
@@ -34,8 +35,7 @@ export class CharGUI {
 		public readonly char: Char,
 		public readonly _gameLogicService: GameLogicService,
 		public readonly style: TextStyle,
-		public readonly reel: Reel,
-		public readonly margin: number
+		public readonly reel: Reel
 	) {}
 
 	public setup(): Container {
@@ -77,17 +77,27 @@ export class CharGUI {
 		this.previousSpecialBar = this.char.specialBar;
 		this.previousUsingSkill = this.char.usingSkill;
 		this.creditsDisplay.initCredits(this.char.credits);
-		this.potionPanel.initPrice(this._gameLogicService.POTION_PRICE);
+		this.potionPanel.initPrice(this._gameLogicService.potionPrice);
 
 		this.tickerCallback = (ticker: { deltaMS: number }) => {
 			const deltaSeconds = ticker.deltaMS / 1000;
+			this.screenEffects.updateParticleEmitters(deltaSeconds);
+
+			if (this.char.hit ||
+				this.char.life !== this.previousLife ||
+				this.char.specialBar !== this.previousSpecialBar ||
+				this.char.usingSkill !== this.previousUsingSkill) {
+				this.dirty = true;
+			}
+
+			if (!this.dirty) return;
+			this.dirty = false;
 
 			this.heroCrest.updateProtected(this.char.isProtected);
 			this.updateHeroAltarMotion();
 			this.lifeBarComp.renderLifeBar(this.char);
 			this.skillPanel.render(this.char.specialBar);
-			this.potionPanel.render(this.char.credits, this._gameLogicService.POTION_PRICE);
-			this.screenEffects.updateParticleEmitters(deltaSeconds);
+			this.potionPanel.render(this.char.credits, this._gameLogicService.potionPrice);
 		};
 
 		this.app.ticker.add(this.tickerCallback);
@@ -96,6 +106,7 @@ export class CharGUI {
 	private updateHeroAltarMotion(): void {
 		if (this.char.hit) {
 			this.char.setHit(false);
+			
 			if (this.previousLife > 0 && this.char.life < this.previousLife) {
 				this.lifeBarComp.playDamageLifeTween(this.char.life / this.char.totalLife, this.char.life);
 				this.lifeBarComp.killLifeTextTween();
@@ -136,7 +147,7 @@ export class CharGUI {
 		}
 
 		this.creditsDisplay.updateCredits(this.char.credits);
-		this.potionPanel.updatePrice(this._gameLogicService.POTION_PRICE);
+		this.potionPanel.updatePrice(this._gameLogicService.potionPrice);
 
 		this.previousLife = this.char.life;
 		this.previousSpecialBar = this.char.specialBar;

@@ -2,6 +2,7 @@ import { Application, Container, BlurFilter, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { DebugConfig } from './interfaces';
 import { REEL_VALUES, REEL_POSITIONS, REEL_POSITION_INDEX, type ReelData } from './reel-types';
+import { arrayRotateOne } from './math-utils';
 
 const SPIN_BASE_DISTANCE = 10;
 const SPIN_DISTANCE_STEP = 5;
@@ -15,6 +16,7 @@ const SPIN_BLUR_STRENGTH = 0.85;
 export class ReelAnimator {
 	private readonly spinBlurFilters: BlurFilter[] = [];
 	private tickerFn: ((ticker: { deltaTime: number }) => void) | null = null;
+	private spinning = false;
 
 	constructor(
 		private readonly app: Application,
@@ -37,6 +39,8 @@ export class ReelAnimator {
 
 	private setupPositionLoop(): void {
 		this.tickerFn = (ticker: { deltaTime: number }) => {
+			if (!this.spinning) return;
+
 			for (const reel of this.reelArr) {
 				reel.blur.strengthY = (reel.position - reel.previousPosition) * ticker.deltaTime;
 				reel.previousPosition = reel.position;
@@ -62,27 +66,31 @@ export class ReelAnimator {
 	}
 
 	public spin(isSkill?: boolean): void {
+		this.spinning = true;
 		const debug = this.getDebugConfig();
 
 		for (let i = 0; i < this.reelArr.length; i++) {
-			const r = this.reelArr[i];
+			const reel = this.reelArr[i];
 
 			if (debug !== undefined && debug.isFixed === true) {
 				const currReel = debug.reels[i];
-				for (let j = 0; j < r.symbols.length; j++) {
-					if (r.symbolsPosition[REEL_POSITION_INDEX[currReel.position.value as REEL_POSITIONS]] === currReel.symbol.value) {
+				for (let j = 0; j < reel.symbols.length; j++) {
+					if (reel.symbolsPosition[REEL_POSITION_INDEX[currReel.position.value as REEL_POSITIONS]] === currReel.symbol.value) {
 						break;
 					}
-					this.arrayRotateOne(r.symbolsPosition, true);
+
+					arrayRotateOne(reel.symbolsPosition, true);
 				}
 			} else if (!isSkill) {
-				r.randomPosValue = Math.floor(Math.random() * (this.defaultValOrder.length - 1));
-				r.randomSymbolValue = this.defaultValOrder[Math.floor(Math.random() * (this.defaultValOrder.length - 1))];
-				for (let j = 0; j < r.symbols.length; j++) {
-					if (r.symbolsPosition[r.randomPosValue] === r.randomSymbolValue) {
+				reel.randomPosValue = Math.floor(Math.random() * (this.defaultValOrder.length - 1));
+				reel.randomSymbolValue = this.defaultValOrder[Math.floor(Math.random() * (this.defaultValOrder.length - 1))];
+				
+				for (let j = 0; j < reel.symbols.length; j++) {
+					if (reel.symbolsPosition[reel.randomPosValue] === reel.randomSymbolValue) {
 						break;
 					}
-					this.arrayRotateOne(r.symbolsPosition, true);
+
+					arrayRotateOne(reel.symbolsPosition, true);
 				}
 			}
 
@@ -91,17 +99,19 @@ export class ReelAnimator {
 
 			const extra = SPIN_EXTRA_MULTIPLIER * i;
 			const start = i === 0 ? SPIN_FIRST_REEL_START : 0;
-			const targetPosition = r.position + SPIN_BASE_DISTANCE + i * SPIN_DISTANCE_STEP + extra + start;
+			const targetPosition = reel.position + SPIN_BASE_DISTANCE + i * SPIN_DISTANCE_STEP + extra + start;
 			const durationMs = SPIN_BASE_DURATION + i * SPIN_DURATION_STEP + extra;
 
-			gsap.to(r, {
+			gsap.to(reel, {
 				position: targetPosition,
 				duration: durationMs / 1000,
 				ease: `back.out(${SPIN_BACKOUT_AMOUNT})`,
 				onComplete: () => {
 					this.reelContainer.children[i].filters = [];
 					this.reelContainer.filters = [];
+
 					if (i === this.reelArr.length - 1) {
+						this.spinning = false;
 						this.onSpinComplete();
 					}
 				}
@@ -110,21 +120,22 @@ export class ReelAnimator {
 	}
 
 	public destroy(): void {
+		this.spinning = false;
+
 		if (this.tickerFn) {
 			this.app.ticker.remove(this.tickerFn);
 			this.tickerFn = null;
 		}
+
 		for (const reel of this.reelArr) {
 			gsap.killTweensOf(reel);
 		}
+
 		for (const blur of this.spinBlurFilters) {
 			blur.destroy();
 		}
+		
 		this.spinBlurFilters.length = 0;
 	}
 
-	private arrayRotateOne(arr: REEL_VALUES[], reverse: boolean): void {
-		if (reverse) arr.unshift(arr.pop()!);
-		else arr.push(arr.shift()!);
-	}
 }

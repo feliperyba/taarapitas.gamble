@@ -1,4 +1,4 @@
-import { Container, Sprite, BlurFilter } from 'pixi.js';
+import { Container, Sprite } from 'pixi.js';
 
 export enum REEL_POSITIONS {
 	TOP = 'TOP',
@@ -28,5 +28,5 @@ export interface ReelData {
 	previousPosition: number;
 	randomSymbolValue: REEL_VALUES;
 	randomPosValue: number;
-	blur: BlurFilter;
+	blur: { strengthX: number; strengthY: number };
 }

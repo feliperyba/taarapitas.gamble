@@ -31,5 +31,11 @@ export const ACTION_DETAIL_STYLE = createGradientTextStyle({
 	align: 'center',
 });
 
-export const COLOR_WHITE = 0xffffff;
-export const COLOR_BLACK = 0x000000;
+export { COLOR_WHITE, COLOR_BLACK } from './constants/colors';
+
+export const DROP_SHADOW_DEFAULT = {
+	color: '#C86913',
+	blur: 0,
+	angle: Math.PI / 6,
+	distance: 0,
+};

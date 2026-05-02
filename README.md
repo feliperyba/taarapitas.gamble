@@ -1,49 +1,103 @@
-# Taarapita´s Gamble
-RogueLite Slot Machine game with Pixi.JS and Angular
+# Taarapita's Gamble
 
- [You can play it online here!](https://feliperyba.github.io/taarapitas.gamble/)
+A roguelite slot machine built with Angular 21 and PixiJS 8.
 
-The Chronicle of Henry of Livonia mentions Tharapita as the superior god of the Oeselians (inhabitants of Saaremaa), also well known to Vironian tribes in northern Estonia. According to the chronicle, when the crusaders invaded Vironia in 1220, there was a beautiful wooded hill in Vironia, where locals believe Tharapita was born and from which he flew to Saaremaa. 
+[Play it here](https://feliperyba.github.io/taarapitas.gamble/)
 
-Now since the mighty God has left, is upon to you to complete his task and Gamble new adventures against the Dark Elf lord.
-Choose from 4 different characteres, wich one with your own unique abilities and test your mighty ( and luck ) agaist your enemies.
+The Chronicle of Henry of Livonia mentions Tharapita as the superior god of the Oeselians, also well known to Vironian tribes in northern Estonia. According to the chronicle, when crusaders invaded Vironia in 1220, there was a beautiful wooded hill where locals believed Tharapita was born and from which he flew to Saaremaa.
 
-# Installation
+Now the mighty god has left. It's up to you to gamble your way through encounters against the Dark Elf lord.
+
+---
+
+## Quick Start
 
 ```
 npm install
-
-npm run start
+npm start
 ```
 
-# Game Design and Rules
-This is game is based on the main principles of a slot machine game. You take one credit to spin the reels and if you land any combination, you'll earn credits and fill your special bar. If none combination was landed, you´ll take 5 hit points.
+## How to Play
 
-The possibles combinatios are:
+Spin the reels for 1 credit. Land a combination to earn credits and charge your skill bar. Miss everything? Take 5 damage.
 
-- 3 DARK ELF symbols on top line 2000 
-- 3 DARK ELF symbols on center line 1000 
-- 3 DARK ELF symbols on bottom line 4000 
-- 3 MINOTAUR symbols on any line 150 
-- Any combination of DARK ELF and MINOTAUR on any line 75 
-- 3 3xGOBLINS symbols on any line 50 
-- 3 2xGOBLINS symbols on any line 20 
-- 3 GOBLINS symbols on any line 10 
-- Combination of any GOBLINS symbols on any line 5 
+### Pay Table
 
-If you strike 3 wins, your skill ability will be ready to use. This skill does not cost any credits and if you lose the spin, you´ll not lose any point of life.
+| Combination | Payout |
+|---|---|
+| 3 Dark Elf on top line | 2000 |
+| 3 Dark Elf on center line | 1000 |
+| 3 Dark Elf on bottom line | 4000 |
+| 3 Minotaur on any line | 150 |
+| Dark Elf + Minotaur on any line | 75 |
+| 3x Goblins on any line | 50 |
+| 2x Goblins on any line | 20 |
+| Goblins on any line | 10 |
+| Any Goblin combo on any line | 5 |
 
-Also, there´s a possibility to buy health potions... for the right price. Each time you use this, the price on the potion will double.
+### Mechanics
 
-The main goal is to survive as much as you can. 
-Some characters makes use of the skill into then and other make it to the reel. Take a look and read each description :
+- **Skill**: Land 3 wins to charge your skill. Free spin, no damage on loss. Each character uses it differently.
+- **Potions**: Buy health potions. Price doubles every time you drink one.
+- **Goal**: Survive as long as you can.
 
-For test reasons, I´ve made a debug section where you can test specific land positions on each reel and also add credits to you character
+A debug panel lets you override reel values and credits for testing.
 
-# Credits
-- Reel spin animation logic was taken from [PixiJS](https://pixijs.io/examples/#/demos/slots-demo.js)
-- The Symbols and Character are from [Justin Nichol](https://www.patreon.com/justinnichol). (Support the guy, he´s good)
-- The other Images are all pre owned and edited by me and you do not have the rights to :
-  - Use
-  - Edit
-  - Redistribute
+---
+
+## Project Structure
+
+```
+src/
+  app/                          Angular entry point & bootstrapping
+  components/debug/             Debug panel (Angular component)
+  services/                     Game logic, state machine, config
+  rendering/                    Asset loading, viewport, DPI scaling
+  model/
+    game-states.ts              Shared state enum (no circular deps)
+    char-select-handler.ts      Callback interface for char selection
+    interfaces.ts               Shared TypeScript types
+    math-utils.ts               mixColor, arrayRotateOne
+    pixi-helpers.ts             fitTextToWidth, buildPanelGraphics, gradient text styles
+    pixi-styles.ts              Drop shadow defaults, color constants re-exports
+    reel.ts / reel-animator.ts  Reel data & spin animation
+    reel-types.ts               REEL_VALUES, REEL_POSITIONS enums
+    constants/
+      animation.ts              Durations, easings, pulse rates
+      colors.ts                 COLOR_WHITE, COLOR_DAMAGE_FLASH, etc.
+      emitter.ts                Particle emitter configs
+      layout.ts                 Positions, sizes, offsets for all panels
+      panel.ts                  Panel border/fill colors
+      skill.ts                  SKILL_CHARGE_MAX
+    char-module/
+      char.ts                   Character model (HP, credits, battle resolution)
+      char-strategy/            Generic CharStrategy<T> per character class
+      char-gui/
+        char-gui.ts             HUD orchestrator (life bar, skill, potion, credits)
+        char-select-screen.ts   Character picker
+        life-bar.ts             HP bar with damage trails
+        skill-panel.ts          Skill charge display
+        potion-panel.ts         Potion purchase button
+        credits-display.ts      Credit counter
+        hero-crest.ts           Character portrait
+        screen-effects.ts       Facade for visual effects
+        screen-shake-effects.ts Camera shake on hit
+        screen-pulse-effects.ts Heal/skill glow pulses
+        particle-effects.ts     Particle emitters
+    pay-module/
+      pay-table.ts              Win detection & battle resolution
+      pay-table-gui/            Pay table visual rows
+      pay-table-strategy/       3 factory functions (position, any-line, multi-value)
+      win-highlighter.ts        Reel tinting on win
+      combinations.ts          Pay combination enum
+    gui-module/
+      gui.ts                    Main game GUI layout (rails, pay table, buttons)
+      button.ts                 PixiJS button component
+```
+
+
+## Credits
+
+- Reel spin animation logic from the [PixiJS slots demo](https://pixijs.io/examples/#/demos/slots-demo.js)
+- Character art by [Justin Nichol](https://www.patreon.com/justinnichol)
+- All other images are original and not licensed for use, editing, or redistribution

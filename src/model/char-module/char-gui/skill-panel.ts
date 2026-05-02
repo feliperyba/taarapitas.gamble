@@ -2,36 +2,17 @@ import { Sprite, Graphics, Container, Text, Rectangle } from 'pixi.js';
 import { gsap } from 'gsap';
 import { Char } from '../char';
 import { Reel } from '../../reel';
-import { GameLogicService, GameStates } from '../../../services/game-logic.service';
+import { GameLogicService } from '../../../services/game-logic.service';
+import { GameStates } from '../../game-states';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
-import { createGradientTextStyle } from '../../pixi-helpers';
-
-const COLOR_WHITE = 0xffffff;
-const COLOR_PANEL_BG = 0x150806;
-const COLOR_PANEL_BORDER = 0x94632f;
-const COLOR_PANEL_INNER_BG = 0x090302;
-const COLOR_PANEL_INNER_BORDER = 0xe3bb73;
-const COLOR_PANEL_TRIM = 0xf7d7a5;
+import { createGradientTextStyle, buildPanelGraphics } from '../../pixi-helpers';
+import { SKILL_CHARGE_MAX } from '../../constants/skill';
+import { clearWinHighlight } from '../../pay-module/win-highlighter';
+import { SKILL_PANEL as LAYOUT } from '../../constants/layout';
+import { SKILL_PANEL as ANIM } from '../../constants/animation';
 const COLOR_SKILL_GLOW_OUTER = 0xf0912c;
 const COLOR_SKILL_GLOW_INNER = 0x070302;
-
-const SKILL_CONTAINER_Y_OFFSET = 98;
-const SKILL_GLOW_OUTER_RADIUS = 68;
-const SKILL_GLOW_INNER_RADIUS = 48;
-const SKILL_OFF_MAX_SIZE = 118;
-const SKILL_READY_MAX_SIZE = 112;
-const SKILL_STATE_TEXT_Y_OFFSET = 144;
-
-const DURATION_SKILL_READY_PULSE = 0.52;
-
-const ALPHA_LOW_LIFE_PULSE = 0.35;
-const ALPHA_SKILL_READY_PULSE_MIN = 0.48;
-const ALPHA_SKILL_OFF = 0.92;
-const ALPHA_SKILL_GLOW_BASE = 0.25;
-const ALPHA_SKILL_GLOW_RANGE = 0.16;
-
-const SKILL_CHARGE_MAX = 3;
 
 export class SkillPanel {
 	private skillReady!: Sprite;
@@ -66,41 +47,33 @@ export class SkillPanel {
 		this.skillOff = new Sprite(getTexture('assets/skill_bar_empty.png'));
 		this.skillReady = new Sprite(getTexture('assets/skill_bar_full.png'));
 
-		panel
-			.roundRect(skillWell.x, skillWell.y, skillWell.width, skillWell.height, 24)
-			.fill({ color: COLOR_PANEL_BG, alpha: 0.88 })
-			.stroke({ color: COLOR_PANEL_BORDER, alpha: 0.24, width: 3 });
-		panel
-			.roundRect(skillWell.x + 10, skillWell.y + 10, skillWell.width - 20, skillWell.height - 20, 20)
-			.fill({ color: COLOR_PANEL_INNER_BG, alpha: 0.72 })
-			.stroke({ color: COLOR_PANEL_INNER_BORDER, alpha: 0.1, width: 2 });
-		trim.roundRect(skillWell.x + 16, skillWell.y + 14, skillWell.width - 32, 16, 8).fill({ color: COLOR_PANEL_TRIM, alpha: 0.06 });
+		buildPanelGraphics(panel, trim, skillWell);
 
 		title.anchor.set(0.5, 0);
 		title.x = skillWell.centerX;
 		title.y = skillWell.y + 4;
 
 		skillContainer.x = skillWell.centerX;
-		skillContainer.y = skillWell.y + SKILL_CONTAINER_Y_OFFSET;
+		skillContainer.y = skillWell.y + LAYOUT.CONTAINER_Y_OFFSET;
 		skillContainer.eventMode = 'static';
 		skillContainer.cursor = 'pointer';
-		skillContainer.hitArea = new Rectangle(-skillWell.width / 2 + 12, -72, skillWell.width - 24, 112);
+		skillContainer.hitArea = new Rectangle(-skillWell.width / 2 + LAYOUT.HIT_AREA_WIDTH_OFFSET, LAYOUT.HIT_AREA_Y_OFFSET, skillWell.width - LAYOUT.HIT_AREA_WIDTH_OFFSET * 2, LAYOUT.HIT_AREA_HEIGHT);
 
-		this.skillGlow.circle(0, 0, SKILL_GLOW_OUTER_RADIUS).fill({ color: COLOR_SKILL_GLOW_OUTER, alpha: 0.1 });
-		this.skillGlow.circle(0, 0, SKILL_GLOW_INNER_RADIUS).fill({ color: COLOR_SKILL_GLOW_INNER, alpha: 0.74 });
+		this.skillGlow.circle(0, 0, LAYOUT.GLOW_OUTER_RADIUS).fill({ color: COLOR_SKILL_GLOW_OUTER, alpha: 0.1 });
+		this.skillGlow.circle(0, 0, LAYOUT.GLOW_INNER_RADIUS).fill({ color: COLOR_SKILL_GLOW_INNER, alpha: 0.74 });
 
 		this.skillOff.anchor.set(0.5);
-		this.skillOff.scale.x = this.skillOff.scale.y = Math.min(SKILL_OFF_MAX_SIZE / this.skillOff.width, SKILL_OFF_MAX_SIZE / this.skillOff.height);
+		this.skillOff.scale.x = this.skillOff.scale.y = Math.min(LAYOUT.OFF_MAX_SIZE / this.skillOff.width, LAYOUT.OFF_MAX_SIZE / this.skillOff.height);
 		this.skillOff.alpha = 1;
 
 		this.skillReady.anchor.set(0.5);
-		this.skillReady.scale.x = this.skillReady.scale.y = Math.min(SKILL_READY_MAX_SIZE / this.skillReady.width, SKILL_READY_MAX_SIZE / this.skillReady.height);
+		this.skillReady.scale.x = this.skillReady.scale.y = Math.min(LAYOUT.READY_MAX_SIZE / this.skillReady.width, LAYOUT.READY_MAX_SIZE / this.skillReady.height);
 		this.skillReady.visible = false;
 
 		this.skillStateText = new Text({ text: 'Charge 0 / 3', style: this.panelNoteStyle });
 		this.skillStateText.anchor.set(0.5, 0);
 		this.skillStateText.x = skillWell.centerX;
-		this.skillStateText.y = skillWell.y + SKILL_STATE_TEXT_Y_OFFSET;
+		this.skillStateText.y = skillWell.y + LAYOUT.STATE_TEXT_Y_OFFSET;
 
 		skillContainer.on('pointerdown', () => {
 			if (
@@ -109,11 +82,9 @@ export class SkillPanel {
 			) {
 				if (gameLogicService.state === GameStates.WIN) {
 					const winPos = reel.reelWinSlotPos;
+					
 					if (winPos !== undefined) {
-						for (const r of reel.reelArr) {
-							r.container.children[winPos].tint = COLOR_WHITE;
-						}
-						reel.reelWinSlotPos = undefined;
+						clearWinHighlight(reel, winPos);
 					}
 				}
 
@@ -144,22 +115,22 @@ export class SkillPanel {
 
 		if (specialBar >= SKILL_CHARGE_MAX) {
 			this.skillReady.visible = true;
-			this.skillOff.alpha = ALPHA_LOW_LIFE_PULSE;
+			this.skillOff.alpha = ANIM.ALPHA.LOW_LIFE_PULSE;
 
 			if (!this.skillPulseActive) {
 				this.skillPulseActive = true;
 				this.skillReady.alpha = 1;
 				gsap.killTweensOf(this.skillReady);
 				gsap.to(this.skillReady, {
-					alpha: ALPHA_SKILL_READY_PULSE_MIN,
-					duration: DURATION_SKILL_READY_PULSE,
+					alpha: ANIM.ALPHA.SKILL_READY_PULSE_MIN,
+					duration: ANIM.DURATION.READY_PULSE,
 					ease: 'sine.inOut',
 					yoyo: true,
 					repeat: -1
 				});
 			}
 
-			this.skillGlow.alpha = ALPHA_SKILL_GLOW_BASE + this.skillReady.alpha * ALPHA_SKILL_GLOW_RANGE;
+			this.skillGlow.alpha = ANIM.ALPHA.SKILL_GLOW_BASE + this.skillReady.alpha * ANIM.ALPHA.SKILL_GLOW_RANGE;
 			this.skillStateText.text = 'Ready to cast';
 		} else {
 			if (this.skillPulseActive) {
@@ -168,8 +139,8 @@ export class SkillPanel {
 			}
 			this.skillReady.visible = false;
 			this.skillReady.alpha = 1;
-			this.skillOff.alpha = ALPHA_SKILL_OFF;
-			this.skillGlow.alpha = ALPHA_SKILL_OFF;
+			this.skillOff.alpha = ANIM.ALPHA.SKILL_OFF;
+			this.skillGlow.alpha = ANIM.ALPHA.SKILL_OFF;
 			this.skillStateText.text = `Charge ${specialBar} / ${SKILL_CHARGE_MAX}`;
 		}
 	}

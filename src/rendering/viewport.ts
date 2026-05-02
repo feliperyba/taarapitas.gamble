@@ -152,6 +152,46 @@ export const SCENE_LAYOUT = {
 		width: 760,
 		height: 530
 	}
+} satisfies {
+	padding: number;
+	centerX: number;
+	centerY: number;
+	charSelect: {
+		top: number;
+		columnGap: number;
+		cardWidth: number;
+		cardHeight: number;
+		contentInset: number;
+		portraitSize: number;
+		portraitY: number;
+		titleY: number;
+		statPanelY: number;
+		statPanelHeight: number;
+		statIconSize: number;
+		descPanelY: number;
+		descPanelHeight: number;
+		selectButtonWidth: number;
+		selectButtonHeight: number;
+		selectButtonBottom: number;
+	};
+	game: {
+		safeMargin: number;
+		panelRadius: number;
+		textScaleTargets: { hudLabel: number; hudValue: number; paytableLabel: number; paytableValue: number };
+		topHud: LayoutRect;
+		heroCrest: LayoutRect;
+		creditsCluster: LayoutRect;
+		leftRail: LayoutRect;
+		paytable: PaytableLayoutRect;
+		reelAltar: LayoutRect;
+		reelViewport: ReelViewportLayoutRect;
+		rightReliquary: LayoutRect;
+		skillWell: LayoutRect;
+		potionWell: LayoutRect;
+		statusWell: LayoutRect;
+		fightButton: LayoutRect;
+	};
+	overlay: { width: number; height: number };
 };
 
 export function getRendererDpi(devicePixelRatio = window.devicePixelRatio || 1): number {

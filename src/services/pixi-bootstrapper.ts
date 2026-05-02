@@ -8,15 +8,13 @@ export interface PixiInitOptions {
 	autoDensity: boolean;
 }
 
-export class PixiBootstrapper {
-	static async createApp(options: Partial<PixiInitOptions>): Promise<Application> {
-		const app = new Application();
-		await app.init(options);
+export async function createPixiApp(options: Partial<PixiInitOptions>): Promise<Application> {
+	const app = new Application();
+	await app.init(options);
 
-		app.canvas.style.display = 'block';
-		app.canvas.style.position = 'absolute';
-		app.canvas.style.inset = '0';
+	app.canvas.style.display = 'block';
+	app.canvas.style.position = 'absolute';
+	app.canvas.style.inset = '0';
 
-		return app;
-	}
+	return app;
 }

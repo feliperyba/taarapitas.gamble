@@ -17,3 +17,26 @@ export function hexToRgb(hex: number): { r: number; g: number; b: number } {
 export function rgbToHex(r: number, g: number, b: number): number {
 	return (r << 16) | (g << 8) | b;
 }
+
+export function mixColor(from: number, to: number, amount: number): number {
+	const clampedAmount = clamp(amount, 0, 1);
+	const fromRgb = hexToRgb(from);
+	const toRgb = hexToRgb(to);
+
+	return rgbToHex(
+		Math.round(lerp(fromRgb.r, toRgb.r, clampedAmount)),
+		Math.round(lerp(fromRgb.g, toRgb.g, clampedAmount)),
+		Math.round(lerp(fromRgb.b, toRgb.b, clampedAmount))
+	);
+}
+
+export function arrayRotateOne<T>(arr: T[], reverse: boolean): void {
+	if (arr.length === 0) return;
+	if (reverse) {
+		const last = arr.pop();
+		if (last !== undefined) arr.unshift(last);
+	} else {
+		const first = arr.shift();
+		if (first !== undefined) arr.push(first);
+	}
+}

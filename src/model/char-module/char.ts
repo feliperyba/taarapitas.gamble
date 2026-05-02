@@ -1,8 +1,6 @@
 import { Texture } from 'pixi.js';
-import { GameStates } from '../../services/game-logic.service';
-import { GameStateMachine } from '../../services/game-state-machine';
 import { CharContext } from '../../model/char-module/char-strategy/char-strategy';
-import type { PayResult } from '../interfaces';
+import type { PayResult, BattleOutcome } from '../interfaces';
 import type { Reel } from '../reel';
 
 export class Char {
@@ -86,28 +84,31 @@ export class Char {
 		this.charContext.useClassSkill(target);
 	}
 
-	public checkBattleResults(result: PayResult, stateMachine: GameStateMachine, defaultDmg: number) {
+	public checkBattleResults(result: PayResult, defaultDmg: number): BattleOutcome {
 		if (result !== null) {
-			this.addCredits(parseInt(result.toString()));
+			this.addCredits(result);
 			this.incrementSpecialBar();
-			stateMachine.transition(GameStates.WIN);
-		} else {
-			this._hit = true;
-			if (!this._usingSkill && !this._isProtected) {
-				this.takeDamage(defaultDmg);
-			}
-			if (this._isProtected) {
-				this._isProtected = false;
-			}
-
-			if (this._life <= 0) {
-				stateMachine.transition(GameStates.LOSE);
-				return;
-			}
-
-			stateMachine.transition(GameStates.WAITING);
+			return 'WIN';
 		}
 
+		this._hit = true;
+		
+		if (!this._usingSkill && !this._isProtected) {
+			this.takeDamage(defaultDmg);
+		}
+
+		if (this._isProtected) {
+			this._isProtected = false;
+		}
+
+		if (this._life <= 0) {
+			return 'LOSE';
+		}
+
+		return 'WAITING';
+	}
+
+	public finalizeRound(): void {
 		if (this._usingSkill) {
 			this._usingSkill = false;
 			this._specialBar = 0;

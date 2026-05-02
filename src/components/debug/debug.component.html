@@ -12,19 +12,20 @@
   <div class="row">
     <div class="col-sm">
       <div class="row">
-        <input name="options" ng-control="options" type="radio" (ngModelChange)="setDebug()" [value]="true" [(ngModel)]="enableDebug">True<br />
+        <input name="options" type="radio" (ngModelChange)="setDebug()" [value]="true" [(ngModel)]="enableDebug">True<br />
       </div>
     </div>
     <div class="col-sm">
       <div class="row">
-        <input name="options" ng-control="options" type="radio" (ngModelChange)="setDebug()" [value]="false"
+        <input name="options" type="radio" (ngModelChange)="setDebug()" [value]="false"
           [(ngModel)]="enableDebug">False<br />
       </div>
     </div>
   </div>
 </div>
 <br>
-<div class="container" *ngIf="enableDebug">
+@if (enableDebug) {
+<div class="container">
   <div class="row">
     <div class="col-xl">
       <div class="row">
@@ -50,12 +51,12 @@
       <div class="row">
         <div class="col-sm">
           <div class="row">
-            <input name="result" ng-control="result" type="radio" [value]="true" [(ngModel)]="isFixed">Fixed<br />
+            <input name="result" type="radio" [value]="true" [(ngModel)]="isFixed">Fixed<br />
           </div>
         </div>
         <div class="col-sm">
           <div class="row">
-            <input name="result" ng-control="result" type="radio" [value]="false" [(ngModel)]="isFixed">Random<br />
+            <input name="result" type="radio" [value]="false" [(ngModel)]="isFixed">Random<br />
           </div>
         </div>
       </div>
@@ -68,31 +69,35 @@
         </div>
       </div>
       <div class="row">
-        <div class="col-sm" *ngFor="let reel of reelArr;let index = index">
-          <div class="row">
-            <select [(ngModel)]="reelArr[index].value" (ngModelChange)="setReelValue(index,$event)" [disabled]="!isFixed">
-              <option [value]="'X3BAR'">x3BAR</option>
-              <option [value]="'BAR'">BAR</option>
-              <option [value]="'X2BAR'">x2BAR</option>
-              <option [value]="'SEVEN'">SEVEN</option>
-              <option [value]="'CHERRY'">CHERRY</option>
-            </select>
+        @for (reel of reelArr; track reel; let i = $index) {
+          <div class="col-sm">
+            <div class="row">
+              <select [(ngModel)]="reelArr[i].value" (ngModelChange)="setReelValue(i,$event)" [disabled]="!isFixed">
+                <option [value]="'X3BAR'">x3BAR</option>
+                <option [value]="'BAR'">BAR</option>
+                <option [value]="'X2BAR'">x2BAR</option>
+                <option [value]="'SEVEN'">SEVEN</option>
+                <option [value]="'CHERRY'">CHERRY</option>
+              </select>
+            </div>
           </div>
-        </div>
+        }
       </div>
       <div class="row">
         <div class="col-sm"><br></div>
       </div>
       <div class="row">
-        <div class="col-sm" *ngFor="let pos of posArr;let index = index">
-          <div class="row">
-            <select [(ngModel)]="posArr[index].value" (ngModelChange)="setPosValue(index,$event)" [disabled]="!isFixed" style="max-width: 5rem;">
-              <option [value]="'TOP'">TOP</option>
-              <option [value]="'CENTER'">CENTER</option>
-              <option [value]="'BOTTOM'">BOTTOM</option>
-            </select>
+        @for (pos of posArr; track pos; let i = $index) {
+          <div class="col-sm">
+            <div class="row">
+              <select [(ngModel)]="posArr[i].value" (ngModelChange)="setPosValue(i,$event)" [disabled]="!isFixed" class="pos-select">
+                <option [value]="'TOP'">TOP</option>
+                <option [value]="'CENTER'">CENTER</option>
+                <option [value]="'BOTTOM'">BOTTOM</option>
+              </select>
+            </div>
           </div>
-        </div>
+        }
       </div>
       <div class="row">
         <div class="col-sm"><br></div>
@@ -105,3 +110,4 @@
     </div>
   </div>
 </div>
+}

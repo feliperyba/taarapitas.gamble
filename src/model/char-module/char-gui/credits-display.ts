@@ -4,17 +4,12 @@ import { Char } from '../char';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
 import { createGradientTextStyle } from '../../pixi-helpers';
+import { CREDITS_DISPLAY as LAYOUT } from '../../constants/layout';
+import { CREDITS_DISPLAY as ANIM } from '../../constants/animation';
 
 const COLOR_CREDITS_PANEL_BG = 0x140806;
 const COLOR_CREDITS_PANEL_BORDER = 0xa37139;
 const COLOR_CREDITS_PANEL_TRIM = 0xf3d3a0;
-
-const COIN_MAX_SIZE = 52;
-const COIN_CREDITS_GAP = 14;
-const CREDITS_TEXT_PADDING = 100;
-const CREDITS_TEXT_MIN_SCALE = 0.76;
-
-const DURATION_CREDITS_ANIM = 0.5;
 
 export class CreditsDisplay {
 	public creditsText: Text = new Text({ text: '' });
@@ -48,16 +43,16 @@ export class CreditsDisplay {
 		label.y = creditsCluster.y + 4;
 
 		this.coin.anchor.set(0.5);
-		this.coin.y = creditsCluster.centerY + 12;
-		this.coin.scale.x = this.coin.scale.y = Math.min(COIN_MAX_SIZE / this.coin.width, COIN_MAX_SIZE / this.coin.height);
+		this.coin.y = creditsCluster.centerY + LAYOUT.COIN_Y_OFFSET;
+		this.coin.scale.x = this.coin.scale.y = Math.min(LAYOUT.COIN_MAX_SIZE / this.coin.width, LAYOUT.COIN_MAX_SIZE / this.coin.height);
 
 		this.creditsText = new Text({ text: char.credits.toString(), style: style });
 		this.creditsText.anchor.set(0, 0.5);
-		this.creditsText.y = creditsCluster.centerY + 10;
+		this.creditsText.y = creditsCluster.centerY + LAYOUT.TEXT_Y_OFFSET;
 
 		this.centerFn = () => {
-			this.fitTextToWidth(this.creditsText, creditsCluster.width - CREDITS_TEXT_PADDING, CREDITS_TEXT_MIN_SCALE);
-			const gap = COIN_CREDITS_GAP;
+			this.fitTextToWidth(this.creditsText, creditsCluster.width - LAYOUT.TEXT_PADDING, LAYOUT.TEXT_MIN_SCALE);
+			const gap = LAYOUT.COIN_CREDITS_GAP;
 			const coinWidth = this.coin.width;
 			const totalWidth = coinWidth + gap + this.creditsText.width;
 			this.coin.x = creditsCluster.centerX - totalWidth / 2 + coinWidth / 2;
@@ -76,12 +71,16 @@ export class CreditsDisplay {
 		if (currentCredits !== this.previousCredits) {
 			gsap.to(this.creditsDisplayState, {
 				value: currentCredits,
-				duration: DURATION_CREDITS_ANIM,
+				duration: ANIM.DURATION.CREDITS_ANIM,
 				ease: 'power2.out',
 				overwrite: true,
 				onUpdate: () => {
-					this.creditsText.text = Math.round(this.creditsDisplayState.value).toString();
-					this.centerFn();
+					const rounded = Math.round(this.creditsDisplayState.value);
+					const text = rounded.toString();
+					if (this.creditsText.text !== text) {
+						this.creditsText.text = text;
+						this.centerFn();
+					}
 				}
 			});
 			this.previousCredits = currentCredits;
