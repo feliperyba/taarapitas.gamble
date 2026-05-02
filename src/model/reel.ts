@@ -1,16 +1,11 @@
-import { Sprite, Application, Container, Texture } from 'pixi.js';
-import { GameStates } from './game-states';
+import { Application, Container, Texture, Sprite } from 'pixi.js';
 import type { DebugConfig } from './interfaces';
 import { getTexture } from '../rendering/assets';
-import { ReelAnimator } from './reel-animator';
+import { ReelAnimator, type IReelAnimator } from './reel-animator';
 import { REEL_VALUES, type ReelData } from './reel-types';
 
-
-export { REEL_POSITIONS, REEL_VALUES, REEL_POSITION_INDEX } from './reel-types';
-export type { ReelData } from './reel-types';
-
 export class Reel {
-	public readonly SLOT_NUMBER = 3;
+	public readonly REEL_COUNT = 3;
 	public readonly REEL_WIDTH = 160;
 	public readonly SYMBOL_SIZE = 150;
 	public readonly DEFAULT_VAL_ORDER: readonly REEL_VALUES[] = [
@@ -25,13 +20,14 @@ export class Reel {
 	public readonly reelArr: ReelData[] = [];
 	public reelWinSlotPos: number | undefined = undefined;
 	private readonly slotTextures: Record<string, Texture> = {};
-	private readonly animator: ReelAnimator;
+	private readonly animator: IReelAnimator;
 
 	constructor(
 		private readonly app: Application,
 		private readonly onSpinComplete: () => void,
 		private readonly getDebugConfig: () => DebugConfig | undefined,
-		private readonly onStateTransition?: (state: GameStates) => void
+		private readonly onStateTransition?: () => void,
+		animatorFactory?: (reel: Reel) => IReelAnimator
 	) {
 		this.slotTextures = {
 			[REEL_VALUES.X3BAR]: getTexture('assets/3xBAR.png'),
@@ -43,7 +39,7 @@ export class Reel {
 
 		this.setContainers();
 
-		this.animator = new ReelAnimator(
+		this.animator = animatorFactory?.(this) ?? new ReelAnimator(
 			this.app,
 			this.reelContainer,
 			this.reelArr,
@@ -56,10 +52,7 @@ export class Reel {
 	}
 
 	public setContainers(): void {
-		this.reelContainer.width = this.REEL_WIDTH / 2 * 5;
-		this.reelContainer.height = this.SYMBOL_SIZE / 2 * 10;
-
-		for (let i = 0; i < this.SLOT_NUMBER; i++) {
+		for (let i = 0; i < this.REEL_COUNT; i++) {
 			const reelContainer = new Container();
 			reelContainer.x = i * this.REEL_WIDTH;
 
@@ -104,7 +97,7 @@ export class Reel {
 		this.reelContainer.destroy({ children: true });
 	}
 
-	public setGameState(state: GameStates): void {
-		this.onStateTransition?.(state);
+	public triggerStart(): void {
+		this.onStateTransition?.();
 	}
 }

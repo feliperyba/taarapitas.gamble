@@ -1,4 +1,4 @@
-import { Application, Container, BlurFilter, Texture } from 'pixi.js';
+import { Application, Container, BlurFilter, Filter, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import type { DebugConfig } from './interfaces';
 import { REEL_VALUES, REEL_POSITIONS, REEL_POSITION_INDEX, type ReelData } from './reel-types';
@@ -12,9 +12,18 @@ const SPIN_BASE_DURATION = 2000;
 const SPIN_DURATION_STEP = 500;
 const SPIN_BACKOUT_AMOUNT = 0.4;
 const SPIN_BLUR_STRENGTH = 0.85;
+const SPIN_EASE = `back.out(${SPIN_BACKOUT_AMOUNT})`;
 
-export class ReelAnimator {
+export interface IReelAnimator {
+	spin(isSkill?: boolean): void;
+	destroy(): void;
+}
+
+export class ReelAnimator implements IReelAnimator {
 	private readonly spinBlurFilters: BlurFilter[] = [];
+	private readonly _emptyFilters: Filter[] = [];
+	private readonly _reelBlurFilters: Filter[][];
+	private readonly symbolLayoutCache = new Map<Texture, { scale: number; x: number }>();
 	private tickerFn: ((ticker: { deltaTime: number }) => void) | null = null;
 	private spinning = false;
 
@@ -34,13 +43,26 @@ export class ReelAnimator {
 			blur.strengthY = 0;
 			this.spinBlurFilters.push(blur);
 		}
-		this.setupPositionLoop();
+
+		this._reelBlurFilters = this.spinBlurFilters.map(blur => [blur as Filter]);
+		this.buildSymbolLayoutCache();
 	}
 
-	private setupPositionLoop(): void {
-		this.tickerFn = (ticker: { deltaTime: number }) => {
-			if (!this.spinning) return;
+	private buildSymbolLayoutCache(): void {
+		for (const key of Object.keys(this.slotTextures)) {
+			const texture = this.slotTextures[key];
+			const scale = Math.min(
+				this.symbolSize / texture.width,
+				this.symbolSize / texture.height
+			);
+			const x = Math.round((this.symbolSize - texture.width * scale) / 2);
+			this.symbolLayoutCache.set(texture, { scale, x });
+		}
+	}
 
+	private addTicker(): void {
+		if (this.tickerFn) return;
+		this.tickerFn = (ticker: { deltaTime: number }) => {
 			for (const reel of this.reelArr) {
 				reel.blur.strengthY = (reel.position - reel.previousPosition) * ticker.deltaTime;
 				reel.previousPosition = reel.position;
@@ -53,11 +75,11 @@ export class ReelAnimator {
 					if (symbol.y < 0 && previousY > this.symbolSize) {
 						symbol.texture = this.slotTextures[reel.symbolsPosition[j]];
 
-						symbol.scale.x = symbol.scale.y = Math.min(
-							this.symbolSize / symbol.texture.width,
-							this.symbolSize / symbol.texture.height
-						);
-						symbol.x = Math.round((this.symbolSize - symbol.width) / 2);
+						const layout = this.symbolLayoutCache.get(symbol.texture);
+						if (layout) {
+							symbol.scale.set(layout.scale);
+							symbol.x = layout.x;
+						}
 					}
 				}
 			}
@@ -65,8 +87,15 @@ export class ReelAnimator {
 		this.app.ticker.add(this.tickerFn);
 	}
 
+	private removeTicker(): void {
+		if (!this.tickerFn) return;
+		this.app.ticker.remove(this.tickerFn);
+		this.tickerFn = null;
+	}
+
 	public spin(isSkill?: boolean): void {
 		this.spinning = true;
+		this.addTicker();
 		const debug = this.getDebugConfig();
 
 		for (let i = 0; i < this.reelArr.length; i++) {
@@ -94,8 +123,7 @@ export class ReelAnimator {
 				}
 			}
 
-			const blur = this.spinBlurFilters[i];
-			this.reelContainer.children[i].filters = [blur];
+			this.reelContainer.children[i].filters = this._reelBlurFilters[i];
 
 			const extra = SPIN_EXTRA_MULTIPLIER * i;
 			const start = i === 0 ? SPIN_FIRST_REEL_START : 0;
@@ -105,13 +133,14 @@ export class ReelAnimator {
 			gsap.to(reel, {
 				position: targetPosition,
 				duration: durationMs / 1000,
-				ease: `back.out(${SPIN_BACKOUT_AMOUNT})`,
+				ease: SPIN_EASE,
 				onComplete: () => {
-					this.reelContainer.children[i].filters = [];
-					this.reelContainer.filters = [];
+					this.reelContainer.children[i].filters = this._emptyFilters;
 
 					if (i === this.reelArr.length - 1) {
+						this.reelContainer.filters = this._emptyFilters;
 						this.spinning = false;
+						this.removeTicker();
 						this.onSpinComplete();
 					}
 				}
@@ -121,11 +150,7 @@ export class ReelAnimator {
 
 	public destroy(): void {
 		this.spinning = false;
-
-		if (this.tickerFn) {
-			this.app.ticker.remove(this.tickerFn);
-			this.tickerFn = null;
-		}
+		this.removeTicker();
 
 		for (const reel of this.reelArr) {
 			gsap.killTweensOf(reel);

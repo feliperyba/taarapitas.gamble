@@ -98,4 +98,8 @@ export class Button {
 		this.btnText.alpha = disabled ? DISABLED_TEXT_ALPHA : 1;
 		this.updateTexture();
 	}
+
+	public destroy(): void {
+		this.btnContainer.removeAllListeners();
+	}
 }

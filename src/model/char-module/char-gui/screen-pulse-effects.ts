@@ -1,33 +1,31 @@
-import { Application, Container, Sprite, ColorMatrixFilter } from 'pixi.js';
+import { Container, Sprite, ColorMatrixFilter, Filter } from 'pixi.js';
 import { gsap } from 'gsap';
 import { mixColor } from '../../math-utils';
 import { SCREEN_EFFECTS as ANIM } from '../../constants/animation';
-
-const COLOR_WHITE = 0xffffff;
+import { SCREEN_PULSE } from '../../constants/animation';
+import { COLOR_WHITE } from '../../constants/colors';
 const COLOR_DAMAGE_PULSE = 0xff6c63;
 const COLOR_HEAL_FLASH = 0xff88d7;
 const COLOR_HEAL_BURST_PULSE = 0xff9ce6;
 const COLOR_SKILL_GOLD = 0xffd27a;
 
 export class ScreenPulseEffects {
-	private app!: Application;
 	private altarContainer!: Container;
 	private heroFrame!: Sprite;
 	private heroFrameFlash!: Sprite;
 	private readonly stagePulseFilter = new ColorMatrixFilter();
 	private readonly stagePulseState = { mix: 0, brightnessDelta: 0 };
 	private stagePulseColor = COLOR_WHITE;
-	private stagePulseFilterAttached = false;
+	private pulseFilterAttached = false;
 
-	public setup(app: Application, altarContainer: Container, heroFrame: Sprite, heroFrameFlash: Sprite): void {
-		this.app = app;
+	public setup(altarContainer: Container, heroFrame: Sprite, heroFrameFlash: Sprite): void {
 		this.altarContainer = altarContainer;
 		this.heroFrame = heroFrame;
 		this.heroFrameFlash = heroFrameFlash;
 	}
 
 	public playDamageScreenPulse(): void {
-		this.playScreenPulse(COLOR_DAMAGE_PULSE, 0.3, -0.18, 0.38);
+		this.playScreenPulse(COLOR_DAMAGE_PULSE, SCREEN_PULSE.DAMAGE.PEAK_MIX, SCREEN_PULSE.DAMAGE.BRIGHTNESS_DELTA, SCREEN_PULSE.DAMAGE.DURATION);
 	}
 
 	public playHealPulse(): void {
@@ -48,7 +46,7 @@ export class ScreenPulseEffects {
 	}
 
 	public playHealBurstScreenPulse(): void {
-		this.playScreenPulse(COLOR_HEAL_BURST_PULSE, 0.24, 0.12, 0.78);
+		this.playScreenPulse(COLOR_HEAL_BURST_PULSE, SCREEN_PULSE.HEAL.PEAK_MIX, SCREEN_PULSE.HEAL.BRIGHTNESS_DELTA, SCREEN_PULSE.HEAL.DURATION);
 	}
 
 	public playSkillPulse(): void {
@@ -60,16 +58,13 @@ export class ScreenPulseEffects {
 		gsap.fromTo(
 			this.altarContainer.scale,
 			{ x: ANIM.SCALE.SKILL_PEAK, y: ANIM.SCALE.SKILL_PEAK },
-			{ x: 1, y: 1, duration: ANIM.DURATION.SKILL_SCALE_RECOVER, ease: 'elastic.out(1, 0.52)' }
+			{ x: 1, y: 1, duration: ANIM.DURATION.SKILL_SCALE_RECOVER, ease: `elastic.out(1, ${SCREEN_PULSE.ELASTICITY})` }
 		);
 	}
 
 	public destroy(): void {
 		gsap.killTweensOf([this.altarContainer?.scale, this.heroFrameFlash, this.heroFrame, this.stagePulseState]);
-		const stageFilters = this.app?.stage?.filters;
-		if (stageFilters) {
-			this.app.stage.filters = stageFilters.filter(f => f !== this.stagePulseFilter);
-		}
+		this.detachPulseFilter();
 		this.stagePulseFilter.destroy();
 	}
 
@@ -78,38 +73,36 @@ export class ScreenPulseEffects {
 		this.stagePulseState.mix = 0;
 		this.stagePulseState.brightnessDelta = brightnessDelta;
 		gsap.killTweensOf(this.stagePulseState);
-		this.updateStagePulseFilter();
 
 		gsap.timeline({
-			onUpdate: () => this.updateStagePulseFilter(),
+			onStart: () => this.attachPulseFilter(),
+			onUpdate: () => this.applyPulseFilterValues(),
 			onComplete: () => {
 				this.stagePulseState.mix = 0;
-				this.updateStagePulseFilter();
+				this.detachPulseFilter();
 			}
 		})
 			.to(this.stagePulseState, { mix: peakMix, duration: duration * ANIM.PULSE.RISE_RATIO, ease: 'power2.out' })
 			.to(this.stagePulseState, { mix: 0, duration: duration * ANIM.PULSE.FALL_RATIO, ease: 'power2.inOut' });
 	}
 
-	private updateStagePulseFilter(): void {
-		if (this.stagePulseState.mix <= ANIM.PULSE.THRESHOLD) {
-			if (this.stagePulseFilterAttached) {
-				this.stagePulseFilter.reset();
-				const stageFilters = this.app.stage.filters;
-				if (stageFilters) {
-					this.app.stage.filters = stageFilters.filter(f => f !== this.stagePulseFilter);
-				}
-				this.stagePulseFilterAttached = false;
-			}
-			return;
-		}
+	private attachPulseFilter(): void {
+		if (this.pulseFilterAttached) return;
+		const existing = this.altarContainer.filters as Filter[] | null;
+		this.altarContainer.filters = existing ? [...existing, this.stagePulseFilter] : [this.stagePulseFilter];
+		this.pulseFilterAttached = true;
+	}
 
-		if (!this.stagePulseFilterAttached) {
-			const stageFilters = this.app.stage.filters ?? [];
-			this.app.stage.filters = [...stageFilters, this.stagePulseFilter];
-			this.stagePulseFilterAttached = true;
+	private detachPulseFilter(): void {
+		if (!this.pulseFilterAttached) return;
+		const existing = this.altarContainer.filters as Filter[] | null;
+		if (existing) {
+			this.altarContainer.filters = existing.filter((f: Filter) => f !== this.stagePulseFilter);
 		}
+		this.pulseFilterAttached = false;
+	}
 
+	private applyPulseFilterValues(): void {
 		this.stagePulseFilter.reset();
 		this.stagePulseFilter.tint(mixColor(COLOR_WHITE, this.stagePulseColor, this.stagePulseState.mix), false);
 		this.stagePulseFilter.brightness(1 + this.stagePulseState.brightnessDelta * this.stagePulseState.mix, true);

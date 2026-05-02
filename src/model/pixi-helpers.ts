@@ -1,4 +1,5 @@
 import { Text, TextStyle, FillGradient, Graphics } from 'pixi.js';
+import { COLOR_PANEL_BG, COLOR_PANEL_BORDER, COLOR_PANEL_INNER_BG, COLOR_PANEL_INNER_BORDER, COLOR_PANEL_TRIM } from './constants/panel';
 
 export interface GradientTextStyleOptions {
 	fillStops: [string, string];
@@ -77,16 +78,35 @@ export interface PanelLayout {
 	height: number;
 }
 
+export function createPanelTitleStyle(): TextStyle {
+	return createGradientTextStyle({
+		fillStops: ['#fff5cf', '#c18f40'],
+		fontSize: 20,
+		strokeWidth: 3,
+		letterSpacing: 1
+	});
+}
+
+export function createPanelNoteStyle(wordWrapWidth: number): TextStyle {
+	return createGradientTextStyle({
+		fillStops: ['#fef4dc', '#be9860'],
+		fontSize: 18,
+		strokeWidth: 3,
+		wordWrap: true,
+		wordWrapWidth
+	});
+}
+
 export function buildPanelGraphics(panel: Graphics, trim: Graphics, layout: PanelLayout): void {
 	panel
 		.roundRect(layout.x, layout.y, layout.width, layout.height, 24)
-		.fill({ color: 0x150806, alpha: 0.88 })
-		.stroke({ color: 0x94632f, alpha: 0.24, width: 3 });
+		.fill({ color: COLOR_PANEL_BG, alpha: 0.88 })
+		.stroke({ color: COLOR_PANEL_BORDER, alpha: 0.24, width: 3 });
 	panel
 		.roundRect(layout.x + 10, layout.y + 10, layout.width - 20, layout.height - 20, 20)
-		.fill({ color: 0x090302, alpha: 0.72 })
-		.stroke({ color: 0xe3bb73, alpha: 0.1, width: 2 });
+		.fill({ color: COLOR_PANEL_INNER_BG, alpha: 0.72 })
+		.stroke({ color: COLOR_PANEL_INNER_BORDER, alpha: 0.1, width: 2 });
 	trim
 		.roundRect(layout.x + 16, layout.y + 14, layout.width - 32, 16, 8)
-		.fill({ color: 0xf7d7a5, alpha: 0.06 });
+		.fill({ color: COLOR_PANEL_TRIM, alpha: 0.06 });
 }

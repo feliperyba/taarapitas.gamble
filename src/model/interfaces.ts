@@ -4,10 +4,11 @@ export type PayResult = number | null;
 
 export type BattleOutcome = 'WIN' | 'LOSE' | 'WAITING';
 
-export enum CharTargetType {
-	Char = 'Char',
-	Reel = 'Reel'
-}
+export const CharTargetType = {
+	Char: 'Char',
+	Reel: 'Reel',
+} as const;
+export type CharTargetType = (typeof CharTargetType)[keyof typeof CharTargetType];
 
 export interface DebugSymbolValue {
 	value: `${REEL_VALUES}`;

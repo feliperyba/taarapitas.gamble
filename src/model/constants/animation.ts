@@ -106,6 +106,19 @@ export const POTION_PANEL = {
 	},
 } as const;
 
+export const SCREEN_PULSE = {
+	DAMAGE: { PEAK_MIX: 0.3, BRIGHTNESS_DELTA: -0.18, DURATION: 0.38 },
+	HEAL: { PEAK_MIX: 0.24, BRIGHTNESS_DELTA: 0.12, DURATION: 0.78 },
+	ELASTICITY: 0.52,
+} as const;
+
+export const PAY_HIGHLIGHT = {
+	INITIAL_ALPHA: 0.92,
+	PULSE_STEP: 0.035,
+	ALPHA_MIN: 0.56,
+	ALPHA_MAX: 0.96,
+} as const;
+
 export const CREDITS_DISPLAY = {
 	DURATION: {
 		CREDITS_ANIM: 0.5,

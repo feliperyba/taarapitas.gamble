@@ -1,18 +1,20 @@
 import { Container, Sprite } from 'pixi.js';
 
-export enum REEL_POSITIONS {
-	TOP = 'TOP',
-	CENTER = 'CENTER',
-	BOTTOM = 'BOTTOM'
-}
+export const REEL_POSITIONS = {
+	TOP: 'TOP',
+	CENTER: 'CENTER',
+	BOTTOM: 'BOTTOM',
+} as const;
+export type REEL_POSITIONS = (typeof REEL_POSITIONS)[keyof typeof REEL_POSITIONS];
 
-export enum REEL_VALUES {
-	X3BAR = 'X3BAR',
-	BAR = 'BAR',
-	X2BAR = 'X2BAR',
-	SEVEN = 'SEVEN',
-	CHERRY = 'CHERRY',
-}
+export const REEL_VALUES = {
+	X3BAR: 'X3BAR',
+	BAR: 'BAR',
+	X2BAR: 'X2BAR',
+	SEVEN: 'SEVEN',
+	CHERRY: 'CHERRY',
+} as const;
+export type REEL_VALUES = (typeof REEL_VALUES)[keyof typeof REEL_VALUES];
 
 export const REEL_POSITION_INDEX: Record<REEL_POSITIONS, number> = {
 	[REEL_POSITIONS.TOP]: 1,

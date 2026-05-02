@@ -1,6 +1,8 @@
-import { BehaviorSubject, distinctUntilChanged } from 'rxjs';
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, distinctUntilChanged, filter } from 'rxjs';
 import { GameStates } from '../model/game-states';
 
+@Injectable({ providedIn: 'root' })
 export class GameStateMachine {
 	private readonly stateSubject = new BehaviorSubject<GameStates>(GameStates.WAITING);
 	public readonly state$ = this.stateSubject.asObservable().pipe(distinctUntilChanged());
@@ -14,11 +16,9 @@ export class GameStateMachine {
 	}
 
 	public onEnter(state: GameStates, callback: () => void): () => void {
-		const subscription = this.state$.subscribe((current) => {
-			if (current === state) {
-				callback();
-			}
-		});
+		const subscription = this.state$.pipe(
+			filter(current => current === state)
+		).subscribe(callback);
 		return () => subscription.unsubscribe();
 	}
 }

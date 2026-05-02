@@ -1,16 +1,16 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DebuggerService } from '../../services/debugger.service';
 import { DebugConfig, DebugSymbolValue, DebugPositionValue } from '../../model/interfaces';
 import { REEL_VALUES, REEL_POSITIONS } from '../../model/reel-types';
+import { DEBUG } from '../../services/game-config';
 
 @Component({
 	standalone: true,
 	selector: 'app-debug',
 	templateUrl: './debug.component.html',
 	styleUrls: [ './debug.component.scss' ],
-	imports: [CommonModule, FormsModule],
+	imports: [FormsModule],
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DebuggerComponent implements OnInit {
@@ -22,15 +22,11 @@ export class DebuggerComponent implements OnInit {
 	public readonly pos1: DebugPositionValue = { value: REEL_POSITIONS.TOP };
 	public readonly pos2: DebugPositionValue = { value: REEL_POSITIONS.TOP };
 	public readonly pos3: DebugPositionValue = { value: REEL_POSITIONS.TOP };
-	public credits = 100;
+	public credits: number = DEBUG.DEFAULT_CREDITS;
 	public readonly reelArr: DebugSymbolValue[] = [];
 	public readonly posArr: DebugPositionValue[] = [];
 	public debugConfig: DebugConfig = this.buildDebugConfig();
 	private readonly _debugService = inject(DebuggerService);
-
-	trackByIndex(index: number): number {
-		return index;
-	}
 
 	ngOnInit(): void {
 		this.reelArr.push(this.reel1, this.reel2, this.reel3);
@@ -50,7 +46,7 @@ export class DebuggerComponent implements OnInit {
 
 		if (this.debugConfig.enabledDebug === false) {
 			this.debugConfig.isFixed = false;
-			this.debugConfig.credits = 100;
+			this.debugConfig.credits = DEBUG.DEFAULT_CREDITS;
 		}
 
 		this._debugService.announceDebugConfig(this.debugConfig);
@@ -62,10 +58,10 @@ export class DebuggerComponent implements OnInit {
 	}
 
 	public checkCreditValue(value: number): void {
-		if (value < 1) {
-			this.credits = 1;
-		} else if (value > 5000) {
-			this.credits = 5000;
+		if (value < DEBUG.MIN_CREDITS) {
+			this.credits = DEBUG.MIN_CREDITS;
+		} else if (value > DEBUG.MAX_CREDITS) {
+			this.credits = DEBUG.MAX_CREDITS;
 		}
 	}
 
@@ -75,9 +71,9 @@ export class DebuggerComponent implements OnInit {
 			isFixed: this.isFixed,
 			credits: this.credits,
 			reels: [
-				Object.assign({}, { symbol: this.reel1, position: this.pos1 }),
-				Object.assign({}, { symbol: this.reel2, position: this.pos2 }),
-				Object.assign({}, { symbol: this.reel3, position: this.pos3 })
+				{ symbol: this.reel1, position: this.pos1 },
+				{ symbol: this.reel2, position: this.pos2 },
+				{ symbol: this.reel3, position: this.pos3 }
 			]
 		};
 	}

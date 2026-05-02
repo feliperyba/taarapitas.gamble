@@ -1,4 +1,5 @@
-import { Reel, REEL_POSITION_INDEX, REEL_POSITIONS, REEL_VALUES } from '../../reel';
+import { Reel } from '../../reel';
+import { REEL_POSITION_INDEX, REEL_POSITIONS, REEL_VALUES } from '../../reel-types';
 import { Texture } from 'pixi.js';
 import { getTexture } from '../../../rendering/assets';
 import { COMBINATIONS } from '../combinations';

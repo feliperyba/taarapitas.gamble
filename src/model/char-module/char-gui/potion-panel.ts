@@ -4,7 +4,7 @@ import { Char } from '../char';
 import { GameLogicService } from '../../../services/game-logic.service';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
-import { createGradientTextStyle, fitTextToWidth, buildPanelGraphics } from '../../pixi-helpers';
+import { createGradientTextStyle, fitTextToWidth, buildPanelGraphics, createPanelTitleStyle, createPanelNoteStyle } from '../../pixi-helpers';
 import { POTION_PANEL as LAYOUT } from '../../constants/layout';
 import { POTION_PANEL as ANIM } from '../../constants/animation';
 
@@ -24,12 +24,7 @@ export class PotionPanel {
 	private previousPotionPrice = 0;
 	private lastRenderedCanAfford: boolean | null = null;
 
-	private readonly panelTitleStyle = createGradientTextStyle({
-		fillStops: ['#fff5cf', '#c18f40'],
-		fontSize: 20,
-		strokeWidth: 3,
-		letterSpacing: 1
-	});
+	private readonly panelTitleStyle = createPanelTitleStyle();
 
 	private readonly hudPriceStyle = createGradientTextStyle({
 		fillStops: ['#fff8dd', '#d1ab59'],
@@ -37,13 +32,9 @@ export class PotionPanel {
 		strokeWidth: 4
 	});
 
-	private readonly panelNoteStyle = createGradientTextStyle({
-		fillStops: ['#fef4dc', '#be9860'],
-		fontSize: 18,
-		strokeWidth: 3,
-		wordWrap: true,
-		wordWrapWidth: SCENE_LAYOUT.game.potionWell.width - 130
-	});
+	private readonly panelNoteStyle = createPanelNoteStyle(
+		SCENE_LAYOUT.game.potionWell.width - 130
+	);
 
 	public setup(parent: Container, char: Char, gameLogicService: GameLogicService): void {
 		const potionWell = SCENE_LAYOUT.game.potionWell;
@@ -80,7 +71,7 @@ export class PotionPanel {
 		priceCoin.y = LAYOUT.PRICE_COIN_Y;
 		priceCoin.scale.x = priceCoin.scale.y = Math.min(LAYOUT.PRICE_COIN_MAX_SIZE / priceCoin.width, LAYOUT.PRICE_COIN_MAX_SIZE / priceCoin.height);
 
-		this.potionPriceText = new Text({ text: gameLogicService.potionPrice.toString(), style: this.hudPriceStyle });
+		this.potionPriceText = new Text({ text: gameLogicService.potionPrice().toString(), style: this.hudPriceStyle });
 		this.potionPriceText.anchor.set(0, 0.5);
 		this.potionPriceText.x = LAYOUT.PRICE_TEXT_X;
 		this.potionPriceText.y = LAYOUT.PRICE_COIN_Y;
@@ -91,11 +82,7 @@ export class PotionPanel {
 
 		this.potionContainer
 			.on('pointerdown', () => {
-				if (char.credits >= gameLogicService.potionPrice) {
-					char.heal(gameLogicService.POTION_HEALTH);
-					char.removeCredits(gameLogicService.potionPrice);
-					gameLogicService.increasePotionPrice();
-				}
+				gameLogicService.buyPotion(char);
 			})
 			.on('pointerover', () => {
 				potionAura.alpha = ALPHA_POTION_HOVER;
@@ -151,6 +138,7 @@ export class PotionPanel {
 
 	public destroy(): void {
 		gsap.killTweensOf(this.potionPriceDisplayState);
+		this.potionContainer?.removeAllListeners();
 	}
 
 }

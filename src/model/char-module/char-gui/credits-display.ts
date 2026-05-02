@@ -3,7 +3,7 @@ import { gsap } from 'gsap';
 import { Char } from '../char';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
-import { createGradientTextStyle } from '../../pixi-helpers';
+import { fitTextToWidth, createPanelTitleStyle } from '../../pixi-helpers';
 import { CREDITS_DISPLAY as LAYOUT } from '../../constants/layout';
 import { CREDITS_DISPLAY as ANIM } from '../../constants/animation';
 
@@ -18,12 +18,7 @@ export class CreditsDisplay {
 	private previousCredits = 0;
 	private coin!: Sprite;
 
-	private readonly panelTitleStyle = createGradientTextStyle({
-		fillStops: ['#fff5cf', '#c18f40'],
-		fontSize: 20,
-		strokeWidth: 3,
-		letterSpacing: 1
-	});
+	private readonly panelTitleStyle = createPanelTitleStyle();
 
 	public setup(parent: Container, char: Char, style: TextStyle): void {
 		const creditsCluster = SCENE_LAYOUT.game.creditsCluster;
@@ -46,12 +41,12 @@ export class CreditsDisplay {
 		this.coin.y = creditsCluster.centerY + LAYOUT.COIN_Y_OFFSET;
 		this.coin.scale.x = this.coin.scale.y = Math.min(LAYOUT.COIN_MAX_SIZE / this.coin.width, LAYOUT.COIN_MAX_SIZE / this.coin.height);
 
-		this.creditsText = new Text({ text: char.credits.toString(), style: style });
+		this.creditsText = new Text({ text: char.credits().toString(), style: style });
 		this.creditsText.anchor.set(0, 0.5);
 		this.creditsText.y = creditsCluster.centerY + LAYOUT.TEXT_Y_OFFSET;
 
 		this.centerFn = () => {
-			this.fitTextToWidth(this.creditsText, creditsCluster.width - LAYOUT.TEXT_PADDING, LAYOUT.TEXT_MIN_SCALE);
+			fitTextToWidth(this.creditsText, creditsCluster.width - LAYOUT.TEXT_PADDING, LAYOUT.TEXT_MIN_SCALE);
 			const gap = LAYOUT.COIN_CREDITS_GAP;
 			const coinWidth = this.coin.width;
 			const totalWidth = coinWidth + gap + this.creditsText.width;
@@ -94,13 +89,5 @@ export class CreditsDisplay {
 
 	public destroy(): void {
 		gsap.killTweensOf(this.creditsDisplayState);
-	}
-
-	private fitTextToWidth(text: Text, maxWidth: number, minScale: number): void {
-		text.scale.set(1);
-		if (text.width > maxWidth) {
-			const nextScale = Math.max(minScale, maxWidth / text.width);
-			text.scale.set(nextScale);
-		}
 	}
 }

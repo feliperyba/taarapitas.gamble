@@ -1,4 +1,6 @@
 import { Sprite, Application, Texture, Graphics, Container, Text } from 'pixi.js';
+import { gsap } from 'gsap';
+import { Subscription } from 'rxjs';
 import { GameLogicService } from '../../../services/game-logic.service';
 import { GameStates } from '../../game-states';
 import { COMBINATIONS } from '../../pay-module/combinations';
@@ -7,7 +9,9 @@ import type { PayCheckStrategy } from '../../pay-module/pay-table-strategy/pay-t
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
 import { createGradientTextStyle, fitTextToWidth } from '../../pixi-helpers';
+import { MASK_ALPHA_INVISIBLE } from '../../constants/colors';
 import { PAY_TABLE } from '../../constants/layout';
+import { PAY_HIGHLIGHT } from '../../constants/animation';
 
 export class PayTableGUI {
 	private readonly descStyle = createGradientTextStyle({
@@ -53,14 +57,15 @@ export class PayTableGUI {
 	public readonly payTableContainer = new Container();
 	public readonly payTableRowData: Partial<Record<COMBINATIONS, { pos: number; rowY: number }>> = {};
 	public result: COMBINATIONS | null = null;
-	private changeAlpha = false;
-	private tickerFn: ((ticker: { deltaTime: number }) => void) | null = null;
+	private _resultSub!: Subscription;
+	private _stateSub!: Subscription;
+	private winHighlightTween: gsap.core.Tween | null = null;
 
 	constructor(
 		public readonly app: Application,
 		public readonly sceneRoot: Container,
 		public readonly payTable: PayTable,
-		public readonly _gameLogicService: GameLogicService
+		public readonly gameLogicService: GameLogicService
 	) {
 		this.payTableContainer.x = this.payTableLayout.x;
 		this.payTableContainer.y = this.payTableLayout.y;
@@ -71,7 +76,7 @@ export class PayTableGUI {
 		this.sceneRoot.addChild(this.payTableContainer);
 		this.payTableContainer.addChild(this.FRAME_HIGHLIGHT);
 
-		this.payTable.result$.subscribe((result) => {
+		this._resultSub = this.payTable.result$.subscribe((result) => {
 			this.result = result;
 		});
 
@@ -81,13 +86,13 @@ export class PayTableGUI {
 	private initHighlight(): void {
 		this.FRAME_HIGHLIGHT = this.createHighlightSprite();
 		this.FRAME_HIGHLIGHT.visible = false;
-		this.FRAME_HIGHLIGHT.alpha = 0.92;
+		this.FRAME_HIGHLIGHT.alpha = PAY_HIGHLIGHT.INITIAL_ALPHA;
 	}
 
 	private initRows(): void {
 		let positionY = PAY_TABLE.HEADER_HEIGHT + PAY_TABLE.LIST_GAP;
 		let i = 0;
-		for (const payStrategy of this.payTable.strategiesArr) {
+		for (const payStrategy of this.payTable.strategies) {
 			const row = this.createRow(payStrategy, positionY);
 			this.payTableRowData[payStrategy.enumIndex] = { pos: i, rowY: positionY };
 			this.payTableContainer.addChild(row);
@@ -103,7 +108,7 @@ export class PayTableGUI {
 
 		const payFrame = this.createRowFrame();
 		const { iconMask, iconRim, payIcon } = this.createRowIcon(payStrategy);
-		const rowText = this.getRowText(payStrategy.enumIndex);
+		const rowText = { label: payStrategy.displayLabel, detail: payStrategy.displayDetail };
 		const { payDesc, badgeText } = this.createRowTexts(rowText);
 		const { payValue, coin } = this.createRowValue(payStrategy);
 
@@ -137,7 +142,7 @@ export class PayTableGUI {
 
 		const iconMask = new Graphics();
 		iconMask.circle(circleX, circleY, circleRadius - 3).fill({ color: 0xffffff, alpha: 1 });
-		iconMask.alpha = 0.001;
+		iconMask.alpha = MASK_ALPHA_INVISIBLE;
 
 		const payIcon = new Sprite(payStrategy.payIcon);
 		payIcon.anchor.set(0.5);
@@ -189,45 +194,46 @@ export class PayTableGUI {
 	}
 
 	public addPayWinAnimations(): void {
-		this.tickerFn = (ticker: { deltaTime: number }) => {
-			if (this._gameLogicService.state !== GameStates.WIN || this.result === null) {
-				if (this.FRAME_HIGHLIGHT.visible) {
-					this.FRAME_HIGHLIGHT.visible = false;
-					this.FRAME_HIGHLIGHT.alpha = 0.92;
-				}
-				return;
+		this._stateSub = this.gameLogicService.stateMachine.state$.subscribe((state) => {
+			if (state === GameStates.WIN && this.result !== null) {
+				this.startWinPulse();
+			} else {
+				this.stopWinPulse();
 			}
+		});
+	}
 
-			const currPayObj = this.payTableRowData[this.result];
-			if (!currPayObj) return;
-			this.FRAME_HIGHLIGHT.x = this.rowFrameX - this.highlightOffsetX;
-			this.FRAME_HIGHLIGHT.y = currPayObj.rowY - this.highlightOffsetY;
-			this.FRAME_HIGHLIGHT.visible = true;
+	private startWinPulse(): void {
+		const currPayObj = this.payTableRowData[this.result!];
+		if (!currPayObj) return;
 
-			const alphaStep = 0.035 * ticker.deltaTime;
+		this.FRAME_HIGHLIGHT.x = this.rowFrameX - this.highlightOffsetX;
+		this.FRAME_HIGHLIGHT.y = currPayObj.rowY - this.highlightOffsetY;
+		this.FRAME_HIGHLIGHT.visible = true;
+		this.FRAME_HIGHLIGHT.alpha = PAY_HIGHLIGHT.ALPHA_MAX;
 
-			if (!this.changeAlpha) {
-				if (this.FRAME_HIGHLIGHT.alpha < 0.56) {
-					this.changeAlpha = !this.changeAlpha;
-				}
-				this.FRAME_HIGHLIGHT.alpha -= alphaStep;
-			}
+		if (this.winHighlightTween) return;
+		this.winHighlightTween = gsap.to(this.FRAME_HIGHLIGHT, {
+			alpha: PAY_HIGHLIGHT.ALPHA_MIN,
+			duration: 0.5,
+			ease: 'sine.inOut',
+			yoyo: true,
+			repeat: -1,
+		});
+	}
 
-			if (this.changeAlpha) {
-				if (this.FRAME_HIGHLIGHT.alpha > 0.96) {
-					this.changeAlpha = !this.changeAlpha;
-				}
-				this.FRAME_HIGHLIGHT.alpha += alphaStep;
-			}
-		};
-		this.app.ticker.add(this.tickerFn);
+	private stopWinPulse(): void {
+		if (!this.winHighlightTween) return;
+		this.winHighlightTween.kill();
+		this.winHighlightTween = null;
+		this.FRAME_HIGHLIGHT.visible = false;
+		this.FRAME_HIGHLIGHT.alpha = PAY_HIGHLIGHT.INITIAL_ALPHA;
 	}
 
 	public destroy(): void {
-		if (this.tickerFn) {
-			this.app.ticker.remove(this.tickerFn);
-			this.tickerFn = null;
-		}
+		this._resultSub?.unsubscribe();
+		this._stateSub?.unsubscribe();
+		this.stopWinPulse();
 		this.payTableContainer.destroy({ children: true });
 	}
 
@@ -235,31 +241,6 @@ export class PayTableGUI {
 		const highlight = new Sprite(this.HIGHLIGHT_FRAME);
 		highlight.scale.set(this.rowFrameScale);
 		return highlight;
-	}
-
-	private getRowText(combination: COMBINATIONS): { label: string; detail: string } {
-		switch (combination) {
-			case COMBINATIONS.CHERRY_BOTTOM:
-				return { label: 'BOTTOM LINE', detail: '3 DARK ELF' };
-			case COMBINATIONS.CHERRY_TOP:
-				return { label: 'TOP LINE', detail: '3 DARK ELF' };
-			case COMBINATIONS.CHERRY_CENTER:
-				return { label: 'CENTER LINE', detail: '3 DARK ELF' };
-			case COMBINATIONS.SEVEN:
-				return { label: 'ANY LINE', detail: '3 MINOTAUR' };
-			case COMBINATIONS.SEVEN_CHERRY:
-				return { label: 'ANY LINE', detail: 'DARK ELF + MINOTAUR' };
-			case COMBINATIONS.X3BAR:
-				return { label: 'ANY LINE', detail: '3 3xGOBLINS' };
-			case COMBINATIONS.X2BAR:
-				return { label: 'ANY LINE', detail: '3 2xGOBLINS' };
-			case COMBINATIONS.BAR:
-				return { label: 'ANY LINE', detail: '3 GOBLINS' };
-			case COMBINATIONS.ANY_BAR:
-				return { label: 'ANY LINE', detail: 'ANY GOBLINS COMBO' };
-			default:
-				return { label: 'ANY LINE', detail: 'MATCH 3' };
-		}
 	}
 
 }

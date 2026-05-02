@@ -8,8 +8,7 @@ import { CreditsDisplay } from './credits-display';
 import { SkillPanel } from './skill-panel';
 import { PotionPanel } from './potion-panel';
 import { ScreenEffects } from './screen-effects';
-
-const SKILL_CHARGE_MAX = 3;
+import { SKILL_CHARGE_MAX } from '../../constants/skill';
 
 export class CharGUI {
 	public readonly charRegionGraphics = new Container();
@@ -27,13 +26,14 @@ export class CharGUI {
 	private previousLife = 0;
 	private previousSpecialBar = 0;
 	private previousUsingSkill = false;
-	private dirty = true;
+	private previousCredits = 0;
+	private previousPotionPrice = 0;
 	private tickerCallback: ((ticker: { deltaMS: number }) => void) | null = null;
 
 	constructor(
 		public readonly app: Application,
 		public readonly char: Char,
-		public readonly _gameLogicService: GameLogicService,
+		public readonly gameLogicService: GameLogicService,
 		public readonly style: TextStyle,
 		public readonly reel: Reel
 	) {}
@@ -48,8 +48,8 @@ export class CharGUI {
 		this.creditsDisplay.setup(this.charRegionGraphics, this.char, this.style);
 		this.creditsText = this.creditsDisplay.creditsText;
 
-		this.skillPanel.setup(this.charRegionGraphics, this.char, this._gameLogicService, this.reel);
-		this.potionPanel.setup(this.charRegionGraphics, this.char, this._gameLogicService);
+		this.skillPanel.setup(this.charRegionGraphics, this.char, this.gameLogicService, this.reel);
+		this.potionPanel.setup(this.charRegionGraphics, this.char, this.gameLogicService);
 
 		this.lifeText = this.lifeBarComp.lifeText;
 		this.lifeBar = this.lifeBarComp.lifeBar;
@@ -73,84 +73,106 @@ export class CharGUI {
 	}
 
 	private setupMainLoop(): void {
-		this.previousLife = this.char.life;
-		this.previousSpecialBar = this.char.specialBar;
-		this.previousUsingSkill = this.char.usingSkill;
-		this.creditsDisplay.initCredits(this.char.credits);
-		this.potionPanel.initPrice(this._gameLogicService.potionPrice);
+		this.previousLife = this.char.life();
+		this.previousSpecialBar = this.char.specialBar();
+		this.previousUsingSkill = this.char.usingSkill();
+		this.previousCredits = this.char.credits();
+		this.previousPotionPrice = this.gameLogicService.potionPrice();
+		this.creditsDisplay.initCredits(this.previousCredits);
+		this.potionPanel.initPrice(this.previousPotionPrice);
 
 		this.tickerCallback = (ticker: { deltaMS: number }) => {
-			const deltaSeconds = ticker.deltaMS / 1000;
-			this.screenEffects.updateParticleEmitters(deltaSeconds);
+			this.screenEffects.updateParticleEmitters(ticker.deltaMS / 1000);
 
-			if (this.char.hit ||
-				this.char.life !== this.previousLife ||
-				this.char.specialBar !== this.previousSpecialBar ||
-				this.char.usingSkill !== this.previousUsingSkill) {
-				this.dirty = true;
+			const hit = this.char.hit();
+			const life = this.char.life();
+			const specialBar = this.char.specialBar();
+			const usingSkill = this.char.usingSkill();
+			const credits = this.char.credits();
+			const potionPrice = this.gameLogicService.potionPrice();
+
+			this.heroCrest.updateProtected(this.char.isProtected());
+
+			if (hit) {
+				this.char.setHit(false);
+				this.handleHitTransition(life);
+			} else if (this.previousLife > 0 && life < this.previousLife) {
+				this.handlePassiveDamageTransition(life);
 			}
 
-			if (!this.dirty) return;
-			this.dirty = false;
+			if (life > this.previousLife) {
+				this.handleHealTransition(life);
+			}
 
-			this.heroCrest.updateProtected(this.char.isProtected);
-			this.updateHeroAltarMotion();
+			if (usingSkill && !this.previousUsingSkill) {
+				this.handleSkillActivation();
+			}
+
+			if (this.previousSpecialBar >= SKILL_CHARGE_MAX && specialBar === 0) {
+				this.handleSkillConsumed();
+			}
+
 			this.lifeBarComp.renderLifeBar(this.char);
-			this.skillPanel.render(this.char.specialBar);
-			this.potionPanel.render(this.char.credits, this._gameLogicService.potionPrice);
-		};
+			this.skillPanel.render(specialBar);
 
+			if (credits !== this.previousCredits) {
+				this.creditsDisplay.updateCredits(credits);
+				this.potionPanel.render(credits, potionPrice);
+				this.previousCredits = credits;
+			}
+
+			if (potionPrice !== this.previousPotionPrice) {
+				this.potionPanel.updatePrice(potionPrice);
+				this.potionPanel.render(credits, potionPrice);
+				this.previousPotionPrice = potionPrice;
+			}
+
+			this.previousLife = life;
+			this.previousSpecialBar = specialBar;
+			this.previousUsingSkill = usingSkill;
+		};
 		this.app.ticker.add(this.tickerCallback);
 	}
 
-	private updateHeroAltarMotion(): void {
-		if (this.char.hit) {
-			this.char.setHit(false);
-			
-			if (this.previousLife > 0 && this.char.life < this.previousLife) {
-				this.lifeBarComp.playDamageLifeTween(this.char.life / this.char.totalLife, this.char.life);
-				this.lifeBarComp.killLifeTextTween();
-				this.lifeBarComp.killHealOverlayTween();
-				this.screenEffects.playDamageShake();
-			} else {
-				this.screenEffects.playProtectedShake();
-			}
-		} else if (this.previousLife > 0 && this.char.life < this.previousLife) {
-			this.lifeBarComp.playDamageLifeTween(this.char.life / this.char.totalLife, this.char.life);
+	private handleHitTransition(life: number): void {
+		if (this.previousLife > 0 && life < this.previousLife) {
+			this.lifeBarComp.playDamageLifeTween(life / this.char.totalLife, life);
+			this.lifeBarComp.killLifeTextTween();
+			this.lifeBarComp.killHealOverlayTween();
+			this.screenEffects.playDamageShake();
+		} else {
+			this.screenEffects.playProtectedShake();
 		}
+	}
 
-		if (this.char.life > this.previousLife) {
-			this.screenEffects.playHealBurst(
-				this.char.life - this.previousLife,
-				this.heroCrest.portraitCenterX,
-				this.heroCrest.portraitCenterY,
-				{
-					centerX: this.lifeBarComp.lifeBarCenterX,
-					centerY: this.lifeBarComp.lifeBarCenterY,
-					maxWidth: this.lifeBarComp.lifeBarMaxWidth,
-					percent: this.lifeBarComp.lifeBarStatePercent,
-					height: this.lifeBarComp.lifeBarHeight,
-					barSprite: this.lifeBarComp.lifeBar
-				},
-				this._gameLogicService.POTION_HEALTH
-			);
-			this.lifeBarComp.playHealLifeTween(this.char.life / this.char.totalLife, this.char.life);
-			this.screenEffects.playHealPulse();
-		}
+	private handlePassiveDamageTransition(life: number): void {
+		this.lifeBarComp.playDamageLifeTween(life / this.char.totalLife, life);
+	}
 
-		if (this.char.usingSkill && !this.previousUsingSkill) {
-			this.screenEffects.playSkillPulse();
-		}
+	private handleHealTransition(life: number): void {
+		this.screenEffects.playHealBurst(
+			life - this.previousLife,
+			this.heroCrest.portraitCenterX,
+			this.heroCrest.portraitCenterY,
+			{
+				centerX: this.lifeBarComp.lifeBarCenterX,
+				centerY: this.lifeBarComp.lifeBarCenterY,
+				maxWidth: this.lifeBarComp.lifeBarMaxWidth,
+				percent: this.lifeBarComp.lifeBarStatePercent,
+				height: this.lifeBarComp.lifeBarHeight,
+				barSprite: this.lifeBarComp.lifeBar
+			},
+			this.gameLogicService.POTION_HEALTH
+		);
+		this.lifeBarComp.playHealLifeTween(life / this.char.totalLife, life);
+		this.screenEffects.playHealPulse();
+	}
 
-		if (this.previousSpecialBar >= SKILL_CHARGE_MAX && this.char.specialBar === 0) {
-			this.screenEffects.playSkillPulse();
-		}
+	private handleSkillActivation(): void {
+		this.screenEffects.playSkillPulse();
+	}
 
-		this.creditsDisplay.updateCredits(this.char.credits);
-		this.potionPanel.updatePrice(this._gameLogicService.potionPrice);
-
-		this.previousLife = this.char.life;
-		this.previousSpecialBar = this.char.specialBar;
-		this.previousUsingSkill = this.char.usingSkill;
+	private handleSkillConsumed(): void {
+		this.screenEffects.playSkillPulse();
 	}
 }

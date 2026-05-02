@@ -1,38 +1,35 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, OnDestroy, ViewChild, ElementRef, NgZone, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, AfterViewInit, OnDestroy, viewChild, ElementRef, NgZone, inject, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Application, Container } from 'pixi.js';
+import { fromEventPattern } from 'rxjs';
+import { auditTime } from 'rxjs/operators';
+import { Application } from 'pixi.js';
 import { GameLogicService } from '../services/game-logic.service';
 import { DebuggerService } from '../services/debugger.service';
+import { GameOrchestratorService } from '../services/game-orchestrator.service';
 import { Reel } from '../model/reel';
-import { GUI } from '../model/gui-module/gui';
-import { PayTable } from '../model/pay-module/pay-table';
 import { Char } from '../model/char-module/char';
-import { CharSelectionScreen } from '../model/char-module/char-gui/char-select-screen';
-import { PayTableGUI } from '../model/pay-module/pay-table-gui/pay-table-gui';
 import { AssetLoadProgress, preloadAssets } from '../rendering/assets';
-import { DESIGN_HEIGHT, DESIGN_WIDTH, ViewportState, computeViewport, getRendererDpi } from '../rendering/viewport';
+import { DESIGN_HEIGHT, DESIGN_WIDTH, ViewportState, computeViewport, computeViewportInto, getRendererDpi } from '../rendering/viewport';
 import { DebuggerComponent } from '../components/debug/debug.component';
 import { createPixiApp } from '../services/pixi-bootstrapper';
-import type { CharSelectHandler } from '../model/char-select-handler';
-import { GameStates } from '../model/game-states';
-import { createGradientTextStyle } from '../model/pixi-helpers';
+import { BOOT } from '../services/game-config';
 
 @Component({
 	standalone: true,
 	selector: 'app-root',
 	templateUrl: './app.component.html',
-	styleUrls: [ './app.component.css' ],
-	imports: [CommonModule, DebuggerComponent],
+	styleUrl: './app.component.css',
+	imports: [DebuggerComponent, DecimalPipe],
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AppComponent implements AfterViewInit, OnDestroy, CharSelectHandler {
-	@ViewChild('pixiContainer') pixiContainer!: ElementRef<HTMLDivElement>;
+export class AppComponent implements AfterViewInit, OnDestroy {
+	readonly pixiContainer = viewChild.required<ElementRef<HTMLDivElement>>('pixiContainer');
 
 	private readonly _gameLogicService = inject(GameLogicService);
 	private readonly _debugService = inject(DebuggerService);
-	private readonly _changeDetectorRef = inject(ChangeDetectorRef);
 	private readonly _ngZone = inject(NgZone);
+	private readonly _orchestrator = inject(GameOrchestratorService);
 
 	constructor() {
 		this._debugService.debugConfig$.pipe(
@@ -41,8 +38,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, CharSelectHandler
 			next: (value) => {
 				if (value != null) {
 					this._gameLogicService.debugConfig = value;
-					if (!isNaN(value.credits) && this.char !== undefined) {
-						this.char.setCredits(value.credits);
+					if (!isNaN(value.credits) && this._orchestrator.char !== undefined) {
+						this._orchestrator.char.setCredits(value.credits);
 					}
 				}
 			},
@@ -51,40 +48,28 @@ export class AppComponent implements AfterViewInit, OnDestroy, CharSelectHandler
 	}
 
 	public app!: Application;
-	public readonly sceneRoot: Container = new Container();
 	public viewport: ViewportState = computeViewport(DESIGN_WIDTH, DESIGN_HEIGHT);
-	private resizeObserver?: ResizeObserver;
+	private resizeSub?: { unsubscribe: () => void };
 
-	public reel!: Reel;
-	public gui!: GUI;
-	public payTable!: PayTable;
-	public payTableGUI!: PayTableGUI;
-	public char!: Char;
-	public charSelectionScreen: CharSelectionScreen | null = null;
-	public showLoader = true;
-	public loaderClosing = false;
-	public loadingFailed = false;
-	public bootProgress = 0;
+	showLoader = signal(true);
+	loaderClosing = signal(false);
+	loadingFailed = signal(false);
+	bootProgress = signal(0);
 
-	public readonly appStyle = createGradientTextStyle({
-		fillStops: ['#ffffff', '#a99047'],
-		fontSize: 36,
-		strokeWidth: 2,
-		dropShadowColor: '#f2ebb5',
-		wordWrap: true,
-		wordWrapWidth: 400
-	});
 	private loaderHideTimer?: number;
+
+	public get reel(): Reel { return this._orchestrator.reel; }
+	public get char(): Char { return this._orchestrator.char; }
 
 	async ngAfterViewInit(): Promise<void> {
 		await this._ngZone.runOutsideAngular(async () => {
 			await this.waitForNextTick();
 
 			try {
-				this.setLoadingProgress(10);
+				this.setLoadingProgress(BOOT.PROGRESS_FONTS_LOADED);
 				await document.fonts.load('bold 36px Primitive');
 
-				this.setLoadingProgress(24);
+				this.setLoadingProgress(BOOT.PROGRESS_APP_CREATED);
 
 				this.app = await createPixiApp({
 					width: DESIGN_WIDTH,
@@ -94,127 +79,105 @@ export class AppComponent implements AfterViewInit, OnDestroy, CharSelectHandler
 					autoDensity: true
 				});
 
-				this.pixiContainer.nativeElement.appendChild(this.app.canvas);
+				this.pixiContainer()!.nativeElement.appendChild(this.app.canvas);
 
-				this.app.stage.addChild(this.sceneRoot);
+				this.app.stage.addChild(this._orchestrator.sceneRoot);
 				this.setupResizeHandling();
 				this.resizeRendererToHost();
 
-				this.setLoadingProgress(32);
+				this.setLoadingProgress(BOOT.PROGRESS_ASSETS_START);
 				await preloadAssets((progress) => {
 					this.updateAssetProgress(progress);
 				});
 
-				this.setLoadingProgress(96);
-				this.loadCharSelect();
+				this.setLoadingProgress(BOOT.PROGRESS_ASSETS_DONE);
+				this._orchestrator.setApp(this.app);
+				this._orchestrator.loadCharSelect();
 				this.completeLoading();
 			} catch (error) {
 				console.error('Failed to boot the game.', error);
 				this.applyLoaderState(() => {
-					this.loadingFailed = true;
-					this.showLoader = true;
-					this.loaderClosing = false;
-					this.bootProgress = Math.max(this.bootProgress, 18);
+					this.loadingFailed.set(true);
+					this.showLoader.set(true);
+					this.loaderClosing.set(false);
+					this.bootProgress.update(p => Math.max(p, BOOT.PROGRESS_ERROR));
 				});
 			}
 		});
-	}
-
-	public loadCharSelect(): void {
-		this.reel = new Reel(
-			this.app,
-			() => { this._gameLogicService.stateMachine.transition(GameStates.RESULTS); },
-			() => this._gameLogicService.debugConfig,
-			(state) => { this._gameLogicService.stateMachine.transition(state); }
-		);
-		this.payTable = new PayTable(this.app, this._gameLogicService, this.reel);
-
-		this.charSelectionScreen = new CharSelectionScreen(this.app, this);
-		this.sceneRoot.addChild(this.charSelectionScreen.selectCharContainer);
-	}
-
-	public setup(): void {
-		this.charSelectionScreen?.destroy();
-		this.charSelectionScreen = null;
-
-		this.gui = new GUI(this.app, this.sceneRoot, this.reel, this.char, this.payTable, this.appStyle, this._gameLogicService);
-		this.payTableGUI = new PayTableGUI(this.app, this.gui.leftRailLayer, this.payTable, this._gameLogicService);
-		this.gui.payTableGUI = this.payTableGUI;
-
-		this._gameLogicService.setGameContext(this.sceneRoot, this.reel, this.payTable, this.char);
-	}
-
-	ngOnDestroy(): void {
-		this.resizeObserver?.disconnect();
-		window.clearTimeout(this.loaderHideTimer);
-		this.reel?.destroy();
-		this.gui?.destroy();
-		this.payTableGUI?.destroy();
-		this.payTable?.result$.complete();
-		this.charSelectionScreen?.destroy();
-		this._gameLogicService.destroy();
-		this.app.destroy();
 	}
 
 	public reloadPage(): void {
 		window.location.reload();
 	}
 
+	ngOnDestroy(): void {
+		this.resizeSub?.unsubscribe();
+		this._orchestrator.destroy();
+		this.app.destroy();
+	}
+
 	private setupResizeHandling(): void {
-		this.resizeObserver = new ResizeObserver(() => {
-			this.resizeRendererToHost();
-		});
-		this.resizeObserver.observe(this.pixiContainer.nativeElement);
+		const resize$ = fromEventPattern<ResizeObserverEntry[]>(
+			addHandler => {
+				const obs = new ResizeObserver(addHandler);
+				obs.observe(this.pixiContainer()!.nativeElement);
+				return obs;
+			},
+			(addHandler, obs) => obs.disconnect()
+		);
+
+		this.resizeSub = resize$.pipe(
+			auditTime(16)
+		).subscribe(() => this.resizeRendererToHost());
 	}
 
 	private resizeRendererToHost = () => {
-		const host = this.pixiContainer.nativeElement;
+		const host = this.pixiContainer()!.nativeElement;
 		const width = host.clientWidth || window.innerWidth || DESIGN_WIDTH;
 		const height = host.clientHeight || window.innerHeight || DESIGN_HEIGHT;
 
-		this.viewport = computeViewport(width, height);
+		computeViewportInto(this.viewport, width, height);
 		this.app.renderer.resolution = getRendererDpi();
 		this.app.renderer.resize(this.viewport.actualWidth, this.viewport.actualHeight);
 
-		this.sceneRoot.scale.set(this.viewport.scale);
-		this.sceneRoot.position.set(this.viewport.offsetX, this.viewport.offsetY);
+		this._orchestrator.sceneRoot.scale.set(this.viewport.scale);
+		this._orchestrator.sceneRoot.position.set(this.viewport.offsetX, this.viewport.offsetY);
 	};
 
 	private updateAssetProgress(progress: AssetLoadProgress) {
-		const overallProgress = 32 + progress.pct * 0.6;
+		const overallProgress = BOOT.ASSET_PROGRESS_BASE + progress.pct * BOOT.ASSET_PROGRESS_RANGE;
 		this.setLoadingProgress(overallProgress);
 	}
 
 	private completeLoading() {
-		this.setLoadingProgress(100);
+		this.setLoadingProgress(BOOT.PROGRESS_COMPLETE);
 		window.clearTimeout(this.loaderHideTimer);
+
 		this.applyLoaderState(() => {
-			this.loaderClosing = true;
+			this.loaderClosing.set(true);
 		});
+		
 		this.loaderHideTimer = window.setTimeout(() => {
 			this.applyLoaderState(() => {
-				this.showLoader = false;
-				this.loaderClosing = false;
+				this.showLoader.set(false);
+				this.loaderClosing.set(false);
 			});
-		}, 220);
+		}, BOOT.LOADER_FADEOUT_DELAY_MS);
 	}
 
 	private setLoadingProgress(progress: number) {
 		this.applyLoaderState(() => {
-			this.bootProgress = Math.max(this.bootProgress, Math.min(100, Math.round(progress)));
+			this.bootProgress.update(p => Math.max(p, Math.min(100, Math.round(progress))));
 		});
 	}
 
 	private applyLoaderState(update: () => void) {
 		this._ngZone.run(() => {
 			update();
-			this._changeDetectorRef.detectChanges();
 		});
 	}
 
 	private waitForNextTick(): Promise<void> {
-		return new Promise((resolve) => {
-			window.setTimeout(() => resolve(), 0);
-		});
+		return new Promise(resolve => queueMicrotask(resolve));
 	}
 }

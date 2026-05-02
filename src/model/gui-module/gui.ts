@@ -1,4 +1,5 @@
 import { Application, Container, TextStyle, Graphics, Text, Texture } from 'pixi.js';
+import { Subscription } from 'rxjs';
 import { GameLogicService } from '../../services/game-logic.service';
 import { GameStates } from '../game-states';
 import { Reel } from '../reel';
@@ -11,9 +12,9 @@ import { getTexture } from '../../rendering/assets';
 import { SCENE_LAYOUT } from '../../rendering/viewport';
 import { DEFAULT_TEXT_STYLE, ACTION_LABEL_STYLE, ACTION_DETAIL_STYLE, COLOR_WHITE, COLOR_BLACK } from '../pixi-styles';
 import { createText } from '../pixi-helpers';
-import { MASK_ALPHA_INVISIBLE } from '../constants/colors';
 import { PANEL } from '../constants/layout';
 import { SKILL_CHARGE_MAX } from '../constants/skill';
+import { HUD_BEAM, RAIL_PANEL, REEL_ALTAR, BOARD_BACKDROP, STATUS_PANEL, BUTTON_SHADOW } from '../constants/gui-style';
 import { drawLayeredPanel } from './layout-helpers';
 import { clearWinHighlight } from '../pay-module/win-highlighter';
 
@@ -31,11 +32,12 @@ export class GUI {
 	private reelMask?: Graphics;
 	private actionStateText = new Text({ text: '' });
 	private actionDetailText = new Text({ text: '' });
-	private lastActionLabel = '';
-	private lastActionDetail = '';
+	private prevActionLabel = '';
+	private prevActionDetail = '';
 	private charGui!: CharGUI;
 	public payTableGUI!: PayTableGUI;
-	private tickerFn: (() => void) | null = null;
+	private playBtn!: Button;
+	private stateSub!: Subscription;
 
 	private readonly btnTexture: Texture;
 	private readonly btnOverTexture: Texture;
@@ -48,7 +50,7 @@ export class GUI {
 		public readonly char: Char,
 		public readonly payTable: PayTable,
 		public readonly style: TextStyle,
-		public readonly _gameLogicService: GameLogicService
+		private readonly gameLogicService: GameLogicService
 	) {
 		this.btnTexture = getTexture('assets/button.png');
 		this.btnOverTexture = getTexture('assets/button-HOVER.png');
@@ -77,12 +79,12 @@ export class GUI {
 		this.reelLayer.addChild(this.reel.reelContainer);
 		this.reelLayer.addChild(this.createBoardOverlay());
 
-		const charGui = new CharGUI(this.app, this.char, this._gameLogicService, this.style, this.reel);
+		const charGui = new CharGUI(this.app, this.char, this.gameLogicService, this.style, this.reel);
 		this.charGui = charGui;
 		const charGuiContainer = charGui.setup();
 		this.heroAltarLayer.addChild(charGuiContainer);
 
-		const playBtn = new Button(
+		this.playBtn = new Button(
 			SCENE_LAYOUT.game.fightButton.height,
 			SCENE_LAYOUT.game.fightButton.width,
 			this.btnTexture,
@@ -92,38 +94,35 @@ export class GUI {
 			DEFAULT_TEXT_STYLE
 		);
 
-		playBtn.btnContainer.x = SCENE_LAYOUT.game.fightButton.x;
-		playBtn.btnContainer.y = SCENE_LAYOUT.game.fightButton.y;
-		playBtn.btnContainer.on('pointerdown', () => {
-			if (this._gameLogicService.state === GameStates.WAITING) {
-				this._gameLogicService.state = GameStates.START;
+		this.playBtn.btnContainer.x = SCENE_LAYOUT.game.fightButton.x;
+		this.playBtn.btnContainer.y = SCENE_LAYOUT.game.fightButton.y;
+		this.playBtn.btnContainer.on('pointerdown', () => {
+			if (this.gameLogicService.state === GameStates.WAITING) {
+				this.gameLogicService.handleStart();
 			}
 
-			if (this._gameLogicService.state === GameStates.WIN) {
+			if (this.gameLogicService.state === GameStates.WIN) {
 				const winPos = this.reel.reelWinSlotPos;
 				if (winPos !== undefined) {
 					clearWinHighlight(this.reel, winPos);
 				}
-				this._gameLogicService.state = GameStates.START;
+				this.gameLogicService.handleStart();
 			}
 		});
 
 		this.actionLayer.addChild(this.createStatusPanel());
-		this.actionLayer.addChild(this.createButtonShadow(playBtn.btnContainer.x, playBtn.btnContainer.y));
-		this.actionLayer.addChild(playBtn.btnContainer);
+		this.actionLayer.addChild(this.createButtonShadow(this.playBtn.btnContainer.x, this.playBtn.btnContainer.y));
+		this.actionLayer.addChild(this.playBtn.btnContainer);
 
-		this.tickerFn = () => {
-			playBtn.setDisabled(!(this._gameLogicService.state === GameStates.WAITING || this._gameLogicService.state === GameStates.WIN));
-			this.updateActionFeedback();
-		};
-		this.app.ticker.add(this.tickerFn);
+		this.stateSub = this.gameLogicService.stateMachine.state$.subscribe(state => {
+			this.playBtn.setDisabled(!(state === GameStates.WAITING || state === GameStates.WIN));
+			this.updateActionFeedback(state);
+		});
 	}
 
 	public destroy(): void {
-		if (this.tickerFn) {
-			this.app.ticker.remove(this.tickerFn);
-			this.tickerFn = null;
-		}
+		this.stateSub?.unsubscribe();
+		this.playBtn?.destroy();
 		this.charGui?.destroy();
 		this.uiRoot.destroy({ children: true });
 	}
@@ -133,13 +132,13 @@ export class GUI {
 		const hud = SCENE_LAYOUT.game.topHud;
 
 		const panel = drawLayeredPanel([
-			{ x: hud.x, y: hud.y + 8, width: hud.width, height: hud.height - 8, radius: 28, fillColor: 0x120706, fillAlpha: 0.84 },
-			{ x: hud.x + 10, y: hud.y + 18, width: hud.width - 20, height: hud.height - 30, radius: 22, fillColor: PANEL.INNER_BG, fillAlpha: 0.8, strokeColor: 0xa06f37, strokeAlpha: 0.26, strokeWidth: 3 },
+			{ x: hud.x, y: hud.y + HUD_BEAM.OUTER.Y_OFFSET, width: hud.width, height: hud.height - HUD_BEAM.OUTER.Y_OFFSET, radius: HUD_BEAM.OUTER.RADIUS, fillColor: HUD_BEAM.OUTER.FILL, fillAlpha: HUD_BEAM.OUTER.ALPHA },
+			{ x: hud.x + HUD_BEAM.INNER.INSET, y: hud.y + HUD_BEAM.OUTER.Y_OFFSET + HUD_BEAM.INNER.INSET, width: hud.width - HUD_BEAM.INNER.INSET * 2, height: hud.height - HUD_BEAM.INNER.BOTTOM_INSET, radius: HUD_BEAM.INNER.RADIUS, fillColor: PANEL.INNER_BG, fillAlpha: HUD_BEAM.INNER.FILL_ALPHA, strokeColor: HUD_BEAM.INNER.STROKE, strokeAlpha: HUD_BEAM.INNER.STROKE_ALPHA, strokeWidth: HUD_BEAM.INNER.STROKE_WIDTH },
 		]);
 
 		const trim = drawLayeredPanel([
-			{ x: hud.x + 18, y: hud.y + 24, width: hud.width - 36, height: 22, radius: 12, fillColor: 0xf7d7a5, fillAlpha: 0.08 },
-			{ x: hud.x + 22, y: hud.y + hud.bottom - 36, width: hud.width - 44, height: 10, radius: 8, fillColor: COLOR_BLACK, fillAlpha: 0.24 },
+			{ x: hud.x + HUD_BEAM.TOP_TRIM.X_INSET, y: hud.y + HUD_BEAM.TOP_TRIM.Y_INSET, width: hud.width - HUD_BEAM.TOP_TRIM.WIDTH_INSET, height: HUD_BEAM.TOP_TRIM.HEIGHT, radius: HUD_BEAM.TOP_TRIM.RADIUS, fillColor: HUD_BEAM.TOP_TRIM.FILL, fillAlpha: HUD_BEAM.TOP_TRIM.ALPHA },
+			{ x: hud.x + HUD_BEAM.BOTTOM_TRIM.X_INSET, y: hud.y + hud.bottom - HUD_BEAM.BOTTOM_TRIM.BOTTOM_INSET, width: hud.width - HUD_BEAM.BOTTOM_TRIM.WIDTH_INSET, height: HUD_BEAM.BOTTOM_TRIM.HEIGHT, radius: HUD_BEAM.BOTTOM_TRIM.RADIUS, fillColor: COLOR_BLACK, fillAlpha: HUD_BEAM.BOTTOM_TRIM.ALPHA },
 		]);
 
 		beam.addChild(panel);
@@ -150,9 +149,9 @@ export class GUI {
 	private createRailPanel(rect: { x: number; y: number; width: number; height: number }, alpha: number): Container {
 		const container = new Container();
 		const panel = drawLayeredPanel([
-			{ x: rect.x + 14, y: rect.y + 18, width: rect.width - 14, height: rect.height - 12, radius: 34, fillColor: COLOR_BLACK, fillAlpha: 0.28 },
-			{ x: rect.x, y: rect.y, width: rect.width, height: rect.height, radius: 32, fillColor: 0x100605, fillAlpha: alpha, strokeColor: 0x6f4924, strokeAlpha: 0.34, strokeWidth: 3 },
-			{ x: rect.x + 12, y: rect.y + 12, width: rect.width - 24, height: rect.height - 24, radius: 24, fillColor: PANEL.INNER_BG, fillAlpha: 0.8, strokeColor: 0xe1b86a, strokeAlpha: 0.12, strokeWidth: 2 },
+			{ x: rect.x + RAIL_PANEL.OUTER.X_INSET, y: rect.y + RAIL_PANEL.OUTER.Y_INSET, width: rect.width - RAIL_PANEL.OUTER.WIDTH_INSET, height: rect.height - RAIL_PANEL.OUTER.HEIGHT_INSET, radius: RAIL_PANEL.OUTER.RADIUS, fillColor: COLOR_BLACK, fillAlpha: RAIL_PANEL.OUTER.ALPHA },
+			{ x: rect.x, y: rect.y, width: rect.width, height: rect.height, radius: RAIL_PANEL.MID.RADIUS, fillColor: RAIL_PANEL.MID.FILL, fillAlpha: alpha, strokeColor: RAIL_PANEL.MID.STROKE, strokeAlpha: RAIL_PANEL.MID.STROKE_ALPHA, strokeWidth: RAIL_PANEL.MID.STROKE_WIDTH },
+			{ x: rect.x + RAIL_PANEL.INNER.INSET, y: rect.y + RAIL_PANEL.INNER.INSET, width: rect.width - RAIL_PANEL.INNER.INSET * 2, height: rect.height - RAIL_PANEL.INNER.INSET * 2, radius: RAIL_PANEL.INNER.RADIUS, fillColor: PANEL.INNER_BG, fillAlpha: RAIL_PANEL.INNER.FILL_ALPHA, strokeColor: RAIL_PANEL.INNER.STROKE, strokeAlpha: RAIL_PANEL.INNER.STROKE_ALPHA, strokeWidth: RAIL_PANEL.INNER.STROKE_WIDTH },
 		]);
 		container.addChild(panel);
 		return container;
@@ -164,11 +163,11 @@ export class GUI {
 		const viewport = SCENE_LAYOUT.game.reelViewport;
 
 		const panel = drawLayeredPanel([
-			{ x: altar.x + 20, y: altar.y + 26, width: altar.width - 20, height: altar.height - 18, radius: 44, fillColor: COLOR_BLACK, fillAlpha: 0.34 },
-			{ x: altar.x + 24, y: altar.y + 30, width: altar.width - 48, height: altar.height - 56, radius: 38, fillColor: 0x0a0403, fillAlpha: 0.82, strokeColor: 0xb57f41, strokeAlpha: 0.22, strokeWidth: 4 },
-			{ x: altar.x + 54, y: altar.y + 72, width: altar.width - 108, height: altar.height - 126, radius: 28, fillColor: PANEL.ALTAR_INNER_BG, fillAlpha: 0.46, strokeColor: 0xe0b56b, strokeAlpha: 0.14, strokeWidth: 2 },
-			{ x: viewport.x - 14, y: viewport.y - 14, width: viewport.width + 28, height: viewport.height + 28, radius: 24, fillColor: 0x090403, fillAlpha: 0.84 },
-			{ x: viewport.x - 4, y: viewport.y - 4, width: viewport.width + 8, height: viewport.height + 8, radius: 20, strokeColor: 0x4b2b18, strokeAlpha: 0.42, strokeWidth: 3 },
+			{ x: altar.x + REEL_ALTAR.SHADOW.X_OFFSET, y: altar.y + REEL_ALTAR.SHADOW.Y_OFFSET, width: altar.width - REEL_ALTAR.SHADOW.WIDTH_OFFSET, height: altar.height - REEL_ALTAR.SHADOW.HEIGHT_OFFSET, radius: REEL_ALTAR.SHADOW.RADIUS, fillColor: COLOR_BLACK, fillAlpha: REEL_ALTAR.SHADOW.ALPHA },
+			{ x: altar.x + REEL_ALTAR.OUTER.X_OFFSET, y: altar.y + REEL_ALTAR.OUTER.Y_OFFSET, width: altar.width - REEL_ALTAR.OUTER.WIDTH_OFFSET, height: altar.height - REEL_ALTAR.OUTER.HEIGHT_OFFSET, radius: REEL_ALTAR.OUTER.RADIUS, fillColor: REEL_ALTAR.OUTER.FILL, fillAlpha: REEL_ALTAR.OUTER.ALPHA, strokeColor: REEL_ALTAR.OUTER.STROKE, strokeAlpha: REEL_ALTAR.OUTER.STROKE_ALPHA, strokeWidth: REEL_ALTAR.OUTER.STROKE_WIDTH },
+			{ x: altar.x + REEL_ALTAR.INNER.X_OFFSET, y: altar.y + REEL_ALTAR.INNER.Y_OFFSET, width: altar.width - REEL_ALTAR.INNER.WIDTH_OFFSET, height: altar.height - REEL_ALTAR.INNER.HEIGHT_OFFSET, radius: REEL_ALTAR.INNER.RADIUS, fillColor: PANEL.ALTAR_INNER_BG, fillAlpha: REEL_ALTAR.INNER.ALPHA, strokeColor: REEL_ALTAR.INNER.STROKE, strokeAlpha: REEL_ALTAR.INNER.STROKE_ALPHA, strokeWidth: REEL_ALTAR.INNER.STROKE_WIDTH },
+			{ x: viewport.x - REEL_ALTAR.VIEWPORT_PADDING.OUTER, y: viewport.y - REEL_ALTAR.VIEWPORT_PADDING.OUTER, width: viewport.width + REEL_ALTAR.VIEWPORT_PADDING.OUTER * 2, height: viewport.height + REEL_ALTAR.VIEWPORT_PADDING.OUTER * 2, radius: REEL_ALTAR.VIEWPORT_PADDING.RADIUS, fillColor: REEL_ALTAR.VIEWPORT_PADDING.FILL, fillAlpha: REEL_ALTAR.VIEWPORT_PADDING.ALPHA },
+			{ x: viewport.x - REEL_ALTAR.VIEWPORT_PADDING.INNER, y: viewport.y - REEL_ALTAR.VIEWPORT_PADDING.INNER, width: viewport.width + REEL_ALTAR.VIEWPORT_PADDING.INNER * 2, height: viewport.height + REEL_ALTAR.VIEWPORT_PADDING.INNER * 2, radius: REEL_ALTAR.VIEWPORT_FRAME.RADIUS, strokeColor: REEL_ALTAR.VIEWPORT_FRAME.STROKE, strokeAlpha: REEL_ALTAR.VIEWPORT_FRAME.STROKE_ALPHA, strokeWidth: REEL_ALTAR.VIEWPORT_FRAME.STROKE_WIDTH },
 		]);
 
 		container.addChild(panel);
@@ -178,8 +177,8 @@ export class GUI {
 
 	private getReelBoardSize(): { width: number; height: number } {
 		return {
-			width: this.reel.REEL_WIDTH * this.reel.SLOT_NUMBER * SCENE_LAYOUT.game.reelViewport.reelScale,
-			height: this.reel.SYMBOL_SIZE * this.reel.SLOT_NUMBER * SCENE_LAYOUT.game.reelViewport.reelScale
+			width: this.reel.REEL_WIDTH * this.reel.REEL_COUNT * SCENE_LAYOUT.game.reelViewport.reelScale,
+			height: this.reel.SYMBOL_SIZE * this.reel.REEL_COUNT * SCENE_LAYOUT.game.reelViewport.reelScale
 		};
 	}
 
@@ -193,15 +192,15 @@ export class GUI {
 		const boardHeight = height + frameInset * 2;
 
 		return drawLayeredPanel([
-			{ x: boardX - 18, y: boardY - 24, width: boardWidth + 36, height: boardHeight + 48, radius: 42, fillColor: 0x040101, fillAlpha: 0.5 },
-			{ x: boardX, y: boardY, width: boardWidth, height: boardHeight, radius: 28, fillColor: PANEL.INNER_BG, fillAlpha: 0.96, strokeColor: 0x7a4a21, strokeAlpha: 0.72, strokeWidth: 4 },
-			{ x: boardX + 10, y: boardY + 10, width: boardWidth - 20, height: boardHeight - 20, radius: 20, strokeColor: 0xe6b55b, strokeAlpha: 0.22, strokeWidth: 2 },
-			{ x: boardX + 18, y: boardY + 18, width: boardWidth - 36, height: boardHeight - 36, radius: 16, fillColor: PANEL.ALTAR_INNER_BG, fillAlpha: 0.24 },
-			{ x: boardX + 22, y: boardY + 18, width: boardWidth - 44, height: 14, radius: 10, fillColor: PANEL.ACCENT_GOLD, fillAlpha: 0.08 },
+			{ x: boardX - BOARD_BACKDROP.SHADOW.INSET, y: boardY - BOARD_BACKDROP.SHADOW.Y_INSET, width: boardWidth + BOARD_BACKDROP.SHADOW.INSET * 2, height: boardHeight + BOARD_BACKDROP.SHADOW.Y_INSET * 2, radius: BOARD_BACKDROP.SHADOW.RADIUS, fillColor: BOARD_BACKDROP.SHADOW.FILL, fillAlpha: BOARD_BACKDROP.SHADOW.ALPHA },
+			{ x: boardX, y: boardY, width: boardWidth, height: boardHeight, radius: BOARD_BACKDROP.OUTER.RADIUS, fillColor: PANEL.INNER_BG, fillAlpha: BOARD_BACKDROP.OUTER.ALPHA, strokeColor: BOARD_BACKDROP.OUTER.STROKE, strokeAlpha: BOARD_BACKDROP.OUTER.STROKE_ALPHA, strokeWidth: BOARD_BACKDROP.OUTER.STROKE_WIDTH },
+			{ x: boardX + BOARD_BACKDROP.MID.INSET, y: boardY + BOARD_BACKDROP.MID.INSET, width: boardWidth - BOARD_BACKDROP.MID.INSET * 2, height: boardHeight - BOARD_BACKDROP.MID.INSET * 2, radius: BOARD_BACKDROP.MID.RADIUS, strokeColor: BOARD_BACKDROP.MID.STROKE, strokeAlpha: BOARD_BACKDROP.MID.STROKE_ALPHA, strokeWidth: BOARD_BACKDROP.MID.STROKE_WIDTH },
+			{ x: boardX + BOARD_BACKDROP.INNER.INSET, y: boardY + BOARD_BACKDROP.INNER.INSET, width: boardWidth - BOARD_BACKDROP.INNER.INSET * 2, height: boardHeight - BOARD_BACKDROP.INNER.INSET * 2, radius: BOARD_BACKDROP.INNER.RADIUS, fillColor: PANEL.ALTAR_INNER_BG, fillAlpha: BOARD_BACKDROP.INNER.ALPHA },
+			{ x: boardX + BOARD_BACKDROP.TOP_TRIM.X_INSET, y: boardY + BOARD_BACKDROP.TOP_TRIM.Y_INSET, width: boardWidth - BOARD_BACKDROP.TOP_TRIM.WIDTH_INSET, height: BOARD_BACKDROP.TOP_TRIM.HEIGHT, radius: BOARD_BACKDROP.TOP_TRIM.RADIUS, fillColor: PANEL.ACCENT_GOLD, fillAlpha: BOARD_BACKDROP.TOP_TRIM.ALPHA },
 		]);
 	}
 
-	private configureReels() {
+	private configureReels(): void {
 		this.reel.reelContainer.x = SCENE_LAYOUT.game.reelViewport.x;
 		this.reel.reelContainer.y = SCENE_LAYOUT.game.reelViewport.y;
 		this.reel.reelContainer.scale.set(SCENE_LAYOUT.game.reelViewport.reelScale);
@@ -212,12 +211,11 @@ export class GUI {
 			.roundRect(
 				0,
 				0,
-				this.reel.REEL_WIDTH * this.reel.SLOT_NUMBER,
-				this.reel.SYMBOL_SIZE * this.reel.SLOT_NUMBER,
+				this.reel.REEL_WIDTH * this.reel.REEL_COUNT,
+				this.reel.SYMBOL_SIZE * this.reel.REEL_COUNT,
 				SCENE_LAYOUT.game.reelViewport.maskRadius
 			)
 			.fill({ color: COLOR_WHITE, alpha: 1 });
-		this.reelMask.alpha = MASK_ALPHA_INVISIBLE;
 		this.reel.reelContainer.addChild(this.reelMask);
 		this.reel.reelContainer.mask = this.reelMask;
 	}
@@ -226,8 +224,8 @@ export class GUI {
 		const overlay = new Container();
 		const grid = new Graphics();
 		const gloss = new Graphics();
-		const localWidth = this.reel.REEL_WIDTH * this.reel.SLOT_NUMBER;
-		const localHeight = this.reel.SYMBOL_SIZE * this.reel.SLOT_NUMBER;
+		const localWidth = this.reel.REEL_WIDTH * this.reel.REEL_COUNT;
+		const localHeight = this.reel.SYMBOL_SIZE * this.reel.REEL_COUNT;
 
 		overlay.x = SCENE_LAYOUT.game.reelViewport.x;
 		overlay.y = SCENE_LAYOUT.game.reelViewport.y;
@@ -235,11 +233,11 @@ export class GUI {
 
 		grid.rect(0, 0, localWidth, localHeight).stroke({ color: PANEL.GRID_BORDER_COLOR, alpha: 0.82, width: 6 });
 
-		for (let column = 1; column < this.reel.SLOT_NUMBER; column++) {
+		for (let column = 1; column < this.reel.REEL_COUNT; column++) {
 			grid.moveTo(column * this.reel.REEL_WIDTH, 0).lineTo(column * this.reel.REEL_WIDTH, localHeight).stroke({ color: PANEL.GRID_LINE_COLOR, alpha: 0.92, width: 6 });
 		}
 
-		for (let row = 1; row < this.reel.SLOT_NUMBER; row++) {
+		for (let row = 1; row < this.reel.REEL_COUNT; row++) {
 			grid.moveTo(0, row * this.reel.SYMBOL_SIZE).lineTo(localWidth, row * this.reel.SYMBOL_SIZE).stroke({ color: PANEL.GRID_LINE_COLOR, alpha: 0.92, width: 6 });
 		}
 
@@ -257,9 +255,9 @@ export class GUI {
 		const panel = new Container();
 
 		const background = drawLayeredPanel([
-			{ x: region.x, y: region.y, width: region.width, height: region.height, radius: 28, fillColor: 0x150806, fillAlpha: 0.88, strokeColor: 0x94632f, strokeAlpha: 0.26, strokeWidth: 3 },
-			{ x: region.x + 10, y: region.y + 10, width: region.width - 20, height: region.height - 20, radius: 22, fillColor: 0x090302, fillAlpha: 0.76, strokeColor: 0xe3bb73, strokeAlpha: 0.12, strokeWidth: 2 },
-			{ x: region.x + 16, y: region.y + 16, width: region.width - 32, height: 18, radius: 10, fillColor: PANEL.ACCENT_GOLD, fillAlpha: 0.08 },
+			{ x: region.x, y: region.y, width: region.width, height: region.height, radius: STATUS_PANEL.OUTER.RADIUS, fillColor: STATUS_PANEL.OUTER.FILL, fillAlpha: STATUS_PANEL.OUTER.ALPHA, strokeColor: STATUS_PANEL.OUTER.STROKE, strokeAlpha: STATUS_PANEL.OUTER.STROKE_ALPHA, strokeWidth: STATUS_PANEL.OUTER.STROKE_WIDTH },
+			{ x: region.x + STATUS_PANEL.INNER.INSET, y: region.y + STATUS_PANEL.INNER.INSET, width: region.width - STATUS_PANEL.INNER.INSET * 2, height: region.height - STATUS_PANEL.INNER.INSET * 2, radius: STATUS_PANEL.INNER.RADIUS, fillColor: STATUS_PANEL.INNER.FILL, fillAlpha: STATUS_PANEL.INNER.ALPHA, strokeColor: STATUS_PANEL.INNER.STROKE, strokeAlpha: STATUS_PANEL.INNER.STROKE_ALPHA, strokeWidth: STATUS_PANEL.INNER.STROKE_WIDTH },
+			{ x: region.x + STATUS_PANEL.TRIM.INSET, y: region.y + STATUS_PANEL.TRIM.INSET, width: region.width - STATUS_PANEL.TRIM.INSET * 2, height: STATUS_PANEL.TRIM.HEIGHT, radius: STATUS_PANEL.TRIM.RADIUS, fillColor: PANEL.ACCENT_GOLD, fillAlpha: STATUS_PANEL.TRIM.ALPHA },
 		]);
 
 		this.actionStateText = createText({ text: 'Ready', style: ACTION_LABEL_STYLE, anchorX: 0.5, x: region.centerX, y: region.y + PANEL.ACTION_LABEL_Y_OFFSET });
@@ -271,43 +269,49 @@ export class GUI {
 		return panel;
 	}
 
-	private updateActionFeedback(): void {
-		let label = 'Ready';
-		let detail = 'The altar waits for your next fight.';
+	private static readonly STATE_LABELS: Partial<Record<GameStates, string>> = {
+		[GameStates.START]: 'Rolling',
+		[GameStates.ROLL]: 'Rolling',
+		[GameStates.RESULTS]: 'Rolling',
+		[GameStates.WIN]: 'Victory',
+		[GameStates.LOSE]: 'Defeated',
+	};
 
-		switch (this._gameLogicService.state) {
-			case GameStates.START:
-			case GameStates.ROLL:
-			case GameStates.RESULTS:
-				label = 'Rolling';
-				detail = 'The ritual is resolving across the parchment reels.';
-				break;
-			case GameStates.WIN:
-				label = 'Victory';
-				detail = this.payTableGUI?.result != null ? `Won ${this.payTableGUI.result} gold. Press Fight to continue.` : 'A winning line struck true.';
-				break;
-			case GameStates.LOSE:
-				label = 'Defeated';
-				detail = 'Your champion has fallen and the altar grows silent.';
-				break;
-			default:
-				if (this.char.credits <= 0) {
-					label = 'No gold';
-					detail = 'You have no gold coins to fight.';
-				} else if (this.char.specialBar >= SKILL_CHARGE_MAX) {
-					detail = 'Skill is ready. Fight or unleash your class power.';
-				} else {
-					detail = 'Fight spends 1 gold unless a skill is primed.';
-				}
-				break;
+	private static readonly STATE_DETAILS: Partial<Record<GameStates, string>> = {
+		[GameStates.START]: 'The ritual is resolving across the parchment reels.',
+		[GameStates.ROLL]: 'The ritual is resolving across the parchment reels.',
+		[GameStates.RESULTS]: 'The ritual is resolving across the parchment reels.',
+		[GameStates.LOSE]: 'Your champion has fallen and the altar grows silent.',
+	};
+
+	private resolveWaitingDetail(): string {
+		if (this.char.credits() <= 0) {
+			return 'You have no gold coins to fight.';
+		}
+		if (this.char.specialBar() >= SKILL_CHARGE_MAX) {
+			return 'Skill is ready. Fight or unleash your class power.';
+		}
+		return 'Fight spends 1 gold unless a skill is primed.';
+	}
+
+	private updateActionFeedback(state: GameStates): void {
+		const label = GUI.STATE_LABELS[state] ?? 'Ready';
+		let detail: string;
+
+		if (state === GameStates.WIN) {
+			detail = this.payTableGUI?.result != null
+				? `Won ${this.payTableGUI.result} gold. Press Fight to continue.`
+				: 'A winning line struck true.';
+		} else {
+			detail = GUI.STATE_DETAILS[state] ?? this.resolveWaitingDetail();
 		}
 
-		if (label !== this.lastActionLabel) {
-			this.lastActionLabel = label;
+		if (label !== this.prevActionLabel) {
+			this.prevActionLabel = label;
 			this.actionStateText.text = label;
 		}
-		if (detail !== this.lastActionDetail) {
-			this.lastActionDetail = detail;
+		if (detail !== this.prevActionDetail) {
+			this.prevActionDetail = detail;
 			this.actionDetailText.text = detail;
 		}
 	}
@@ -315,8 +319,8 @@ export class GUI {
 	private createButtonShadow(x: number, y: number): Graphics {
 		const shadow = new Graphics();
 		shadow
-			.roundRect(x + 10, y + 14, SCENE_LAYOUT.game.fightButton.width, SCENE_LAYOUT.game.fightButton.height, 32)
-			.fill({ color: COLOR_BLACK, alpha: 0.3 });
+			.roundRect(x + BUTTON_SHADOW.X_OFFSET, y + BUTTON_SHADOW.Y_OFFSET, SCENE_LAYOUT.game.fightButton.width, SCENE_LAYOUT.game.fightButton.height, BUTTON_SHADOW.RADIUS)
+			.fill({ color: COLOR_BLACK, alpha: BUTTON_SHADOW.ALPHA });
 		return shadow;
 	}
 }

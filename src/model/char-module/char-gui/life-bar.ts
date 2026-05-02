@@ -3,11 +3,11 @@ import { gsap } from 'gsap';
 import { Char } from '../char';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
-import { clamp, lerp } from '../../math-utils';
+import { clamp, lerp, mixColor } from '../../math-utils';
 import { createGradientTextStyle } from '../../pixi-helpers';
+import { COLOR_WHITE } from '../../constants/colors';
 import { LIFE_BAR as ANIM } from '../../constants/animation';
 
-const COLOR_WHITE = 0xffffff;
 const COLOR_DAMAGE_TRAIL = 0xb03030;
 const COLOR_HEAL_OVERLAY = 0x46ff8d;
 const COLOR_HEAL_PULSE_BRIGHT = 0xc7ff7c;
@@ -88,9 +88,9 @@ export class LifeBar {
 	}
 
 	private initState(char: Char): void {
-		const initialPercent = clamp(char.life / char.totalLife, 0, 1);
+		const initialPercent = clamp(char.life() / char.totalLife, 0, 1);
 		this.lifeBarState.percent = initialPercent;
-		this.lifeBarState.displayedLife = char.life;
+		this.lifeBarState.displayedLife = char.life();
 		this.damageTrailState.percent = initialPercent;
 		this.damageTrailState.alpha = 0;
 	}
@@ -157,7 +157,7 @@ export class LifeBar {
 	}
 
 	private initLifeText(char: Char): void {
-		this.lifeText = new Text({ text: `${char.life}/${char.totalLife}`, style: this.hudValueStyle });
+		this.lifeText = new Text({ text: `${char.life()}/${char.totalLife}`, style: this.hudValueStyle });
 		this.lifeText.anchor.set(0.5);
 		this.lifeText.x = this.lifeBarCenterX;
 		this.lifeText.y = this.lifeBarCenterY;
@@ -274,7 +274,7 @@ export class LifeBar {
 			this.lifeText.text = lifeText;
 		}
 
-		if (char.life <= ANIM.LOW_LIFE_THRESHOLD && char.life > 0) {
+		if (char.life() <= ANIM.LOW_LIFE_THRESHOLD && char.life() > 0) {
 			if (!this.lowLifePulseActive) {
 				this.lowLifePulseActive = true;
 				gsap.killTweensOf(this.lifeBar);
@@ -306,41 +306,24 @@ export class LifeBar {
 
 		if (clampedProgress < ANIM.HEAL_PULSE_RISE_END) {
 			const riseAmount = clampedProgress / ANIM.HEAL_PULSE_RISE_END;
-			this.lifeBarHealOverlay.tint = this.mixColor(COLOR_HEAL_PULSE_BRIGHT, COLOR_HEAL_PULSE_MID, riseAmount);
+			this.lifeBarHealOverlay.tint = mixColor(COLOR_HEAL_PULSE_BRIGHT, COLOR_HEAL_PULSE_MID, riseAmount);
 			this.lifeBarHealOverlay.alpha = lerp(0, ANIM.ALPHA.HEAL_PULSE_PEAK, riseAmount);
 			return;
 		}
 
 		if (clampedProgress < ANIM.HEAL_PULSE_HOLD_END) {
 			const holdAmount = (clampedProgress - ANIM.HEAL_PULSE_RISE_END) / (ANIM.HEAL_PULSE_HOLD_END - ANIM.HEAL_PULSE_RISE_END);
-			this.lifeBarHealOverlay.tint = this.mixColor(COLOR_HEAL_PULSE_MID, COLOR_HEAL_PULSE_SOFT, holdAmount);
+			this.lifeBarHealOverlay.tint = mixColor(COLOR_HEAL_PULSE_MID, COLOR_HEAL_PULSE_SOFT, holdAmount);
 			this.lifeBarHealOverlay.alpha = lerp(ANIM.ALPHA.HEAL_PULSE_PEAK, ANIM.ALPHA.HEAL_PULSE_HOLD, holdAmount);
 			return;
 		}
 
 		const fallAmount = (clampedProgress - ANIM.HEAL_PULSE_HOLD_END) / (1 - ANIM.HEAL_PULSE_HOLD_END);
-		this.lifeBarHealOverlay.tint = this.mixColor(COLOR_HEAL_PULSE_SOFT, COLOR_HEAL_PULSE_MID, fallAmount);
+		this.lifeBarHealOverlay.tint = mixColor(COLOR_HEAL_PULSE_SOFT, COLOR_HEAL_PULSE_MID, fallAmount);
 		this.lifeBarHealOverlay.alpha = lerp(ANIM.ALPHA.HEAL_PULSE_HOLD, 0, fallAmount);
 	}
 
 	private configureBarMask(mask: Graphics): void {
 		mask.rect(0, 0, this.lifeBarMaxWidth, this.lifeBarHeight).fill({ color: COLOR_WHITE, alpha: 1 });
-		mask.alpha = 0.001;
-	}
-
-	private mixColor(from: number, to: number, amount: number): number {
-		const t = clamp(amount, 0, 1);
-		const fr = (from >> 16) & 0xff;
-		const fg = (from >> 8) & 0xff;
-		const fb = from & 0xff;
-		const tr = (to >> 16) & 0xff;
-		const tg = (to >> 8) & 0xff;
-		const tb = to & 0xff;
-
-		return (
-			(Math.round(fr + (tr - fr) * t) << 16) |
-			(Math.round(fg + (tg - fg) * t) << 8) |
-			Math.round(fb + (tb - fb) * t)
-		);
 	}
 }

@@ -49,52 +49,64 @@ A debug panel lets you override reel values and credits for testing.
 
 ```
 src/
-  app/                          Angular entry point & bootstrapping
+  app/                          Angular entry point & PixiJS canvas
   components/debug/             Debug panel (Angular component)
-  services/                     Game logic, state machine, config
-  rendering/                    Asset loading, viewport, DPI scaling
+  services/                     Services & state management
+    game-orchestrator.service   Game lifecycle & scene orchestration
+    game-logic.service          Rules, payouts, skill & potion logic
+    game-state-machine          Finite state machine (idle → spin → results → …)
+    game-state.ts               Interface slices for dependency inversion
+    game-config                 Tunable constants (potion price, boot timings)
+    character-strategies.token  DI token for extensible character roster
+    debugger.service            Debug state relay to Angular component
+    game-over-overlay           Death screen
+    pixi-bootstrapper           PixiJS app factory
+  rendering/                    Asset loading, viewport & DPI scaling
   model/
-    game-states.ts              Shared state enum (no circular deps)
-    char-select-handler.ts      Callback interface for char selection
-    interfaces.ts               Shared TypeScript types
-    math-utils.ts               mixColor, arrayRotateOne
-    pixi-helpers.ts             fitTextToWidth, buildPanelGraphics, gradient text styles
-    pixi-styles.ts              Drop shadow defaults, color constants re-exports
-    reel.ts / reel-animator.ts  Reel data & spin animation
-    reel-types.ts               REEL_VALUES, REEL_POSITIONS enums
+    game-states.ts              Shared state constants
+    char-select-handler.ts      Callback interface for character selection
+    interfaces.ts               Shared types (SkillTarget, CharContext)
+    math-utils.ts               Color mixing, array rotation
+    pixi-helpers.ts             Text fitting, panel builder, gradient styles
+    pixi-styles.ts              Drop shadow defaults, color re-exports
+    reel.ts                     Reel data model & symbol layout
+    reel-animator.ts            Spin animation (dynamic ticker, pre-cached layouts)
+    reel-types.ts               Symbol & position constants (as const)
     constants/
       animation.ts              Durations, easings, pulse rates
-      colors.ts                 COLOR_WHITE, COLOR_DAMAGE_FLASH, etc.
+      colors.ts                 Named color palette
       emitter.ts                Particle emitter configs
-      layout.ts                 Positions, sizes, offsets for all panels
-      panel.ts                  Panel border/fill colors
-      skill.ts                  SKILL_CHARGE_MAX
+      gui-style.ts              HUD layout dimensions
+      layout.ts                 Panel positions & sizes
+      panel.ts                  Panel border & fill colors
+      skill.ts                  Skill charge threshold
     char-module/
-      char.ts                   Character model (HP, credits, battle resolution)
-      char-strategy/            Generic CharStrategy<T> per character class
+      char.ts                   Character model (signals: HP, credits, skill, rounds)
+      char-strategy/            Per-class strategy pattern (Warrior, Berserker, Mage, Cleric)
       char-gui/
-        char-gui.ts             HUD orchestrator (life bar, skill, potion, credits)
-        char-select-screen.ts   Character picker
+        char-gui.ts             HUD orchestrator (signal-driven, no polling)
+        char-select-screen.ts   Character picker (DI-injected strategies)
         life-bar.ts             HP bar with damage trails
         skill-panel.ts          Skill charge display
         potion-panel.ts         Potion purchase button
-        credits-display.ts      Credit counter
-        hero-crest.ts           Character portrait
+        credits-display.ts      Credit counter with auto-fit text
+        hero-crest.ts           Character portrait with damage flash
         screen-effects.ts       Facade for visual effects
         screen-shake-effects.ts Camera shake on hit
-        screen-pulse-effects.ts Heal/skill glow pulses
-        particle-effects.ts     Particle emitters
+        screen-pulse-effects.ts Heal/skill glow (scoped filters, not full-stage)
+        particle-effects.ts     Particle emitters (pre-allocated arrays)
     pay-module/
       pay-table.ts              Win detection & battle resolution
-      pay-table-gui/            Pay table visual rows
-      pay-table-strategy/       3 factory functions (position, any-line, multi-value)
+      pay-table-gui/            Pay table visual rows (GSAP-driven highlights)
+      pay-table-strategy/       3 factory types (position, any-line, multi-value)
       win-highlighter.ts        Reel tinting on win
-      combinations.ts          Pay combination enum
+      combinations.ts           Pay combination constants
     gui-module/
-      gui.ts                    Main game GUI layout (rails, pay table, buttons)
-      button.ts                 PixiJS button component
+      gui.ts                    Main game GUI (rails, buttons, state subscriptions)
+      button.ts                 Reusable PixiJS button with destroy cleanup
 ```
 
+---
 
 ## Credits
 

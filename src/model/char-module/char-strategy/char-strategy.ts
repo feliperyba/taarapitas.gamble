@@ -1,10 +1,9 @@
-import { Char } from '../../../model/char-module/char';
+import { Char } from '../char';
 import { Texture } from 'pixi.js';
-import { GameStates } from '../../game-states';
 
 import { getTexture } from '../../../rendering/assets';
-import type { Reel } from '../../../model/reel';
-import { CharTargetType } from '../../../model/interfaces';
+import type { Reel } from '../../reel';
+import { CharTargetType } from '../../interfaces';
 import { arrayRotateOne } from '../../math-utils';
 
 export type SkillTarget = Char | Reel;
@@ -49,15 +48,16 @@ export class CharContext<T extends SkillTarget = SkillTarget> {
 
 export class WarriorClassStrategy implements CharStrategy<Char> {
 	public readonly NAME = 'Warrior';
-	public readonly PORTRAIT: Texture = getTexture('assets/warrior.png');
-	public readonly BACKGROUND: Texture = getTexture('assets/warrior_background.png');
+	public get PORTRAIT(): Texture { return getTexture('assets/warrior.png'); }
+	public get BACKGROUND(): Texture { return getTexture('assets/warrior_background.png'); }
 	public readonly LIFE = 25;
 	public readonly CREDITS = 35;
 	public readonly SKILL_DESC = 'Warrior Skill creates a shield protector that last one hit';
 	public readonly TARGET_TYPE = CharTargetType.Char;
 
 	public create(): Char {
-		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
+		const context = new CharContext(this);
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC, context);
 	}
 	public useSkill(target: Char): void {
 		target.setProtected(true);
@@ -66,15 +66,16 @@ export class WarriorClassStrategy implements CharStrategy<Char> {
 
 export class BerserkerClassStrategy implements CharStrategy<Reel> {
 	public readonly NAME = 'Berserker';
-	public readonly PORTRAIT: Texture = getTexture('assets/berserker.png');
-	public readonly BACKGROUND: Texture = getTexture('assets/berserker_background.png');
+	public get PORTRAIT(): Texture { return getTexture('assets/berserker.png'); }
+	public get BACKGROUND(): Texture { return getTexture('assets/berserker_background.png'); }
 	public readonly LIFE = 30;
 	public readonly CREDITS = 20;
 	public readonly SKILL_DESC = 'Berserker Skill Makes every Spinner roll 2 slots';
 	public readonly TARGET_TYPE = CharTargetType.Reel;
 
 	public create(): Char {
-		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
+		const context = new CharContext(this);
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC, context);
 	}
 	public useSkill(target: Reel): void {
 		for (const r of target.reelArr) {
@@ -82,21 +83,22 @@ export class BerserkerClassStrategy implements CharStrategy<Reel> {
 				arrayRotateOne(r.symbolsPosition, true);
 			}
 		}
-		target.setGameState(GameStates.START);
+		target.triggerStart();
 	}
 }
 
 export class ClericClassStrategy implements CharStrategy<Char> {
 	public readonly NAME = 'Cleric';
-	public readonly PORTRAIT: Texture = getTexture('assets/cleric.png');
-	public readonly BACKGROUND: Texture = getTexture('assets/cleric_background.png');
+	public get PORTRAIT(): Texture { return getTexture('assets/cleric.png'); }
+	public get BACKGROUND(): Texture { return getTexture('assets/cleric_background.png'); }
 	public readonly LIFE = 15;
 	public readonly CREDITS = 10;
 	public readonly SKILL_DESC = 'Cleric Skill Recover 10 points of life';
 	public readonly TARGET_TYPE = CharTargetType.Char;
 
 	public create(): Char {
-		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
+		const context = new CharContext(this);
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC, context);
 	}
 	public useSkill(target: Char): void {
 		target.heal(10);
@@ -105,15 +107,16 @@ export class ClericClassStrategy implements CharStrategy<Char> {
 
 export class MageClassStrategy implements CharStrategy<Reel> {
 	public readonly NAME = 'Mage';
-	public readonly PORTRAIT: Texture = getTexture('assets/mage.png');
-	public readonly BACKGROUND: Texture = getTexture('assets/mage_background.png');
+	public get PORTRAIT(): Texture { return getTexture('assets/mage.png'); }
+	public get BACKGROUND(): Texture { return getTexture('assets/mage_background.png'); }
 	public readonly LIFE = 10;
 	public readonly CREDITS = 100;
 	public readonly SKILL_DESC = 'Mage Skill Makes every Spinner roll slots  by the number of their locations';
 	public readonly TARGET_TYPE = CharTargetType.Reel;
 
 	public create(): Char {
-		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC);
+		const context = new CharContext(this);
+		return new Char(this.PORTRAIT, this.LIFE, this.CREDITS, this.SKILL_DESC, context);
 	}
 	public useSkill(target: Reel): void {
 		for (let i = 0; i < target.reelArr.length - 1; i++) {
@@ -121,6 +124,6 @@ export class MageClassStrategy implements CharStrategy<Reel> {
 				arrayRotateOne(target.reelArr[i].symbolsPosition, true);
 			}
 		}
-		target.setGameState(GameStates.START);
+		target.triggerStart();
 	}
 }

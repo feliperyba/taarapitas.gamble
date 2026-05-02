@@ -1,38 +1,34 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import { Container } from 'pixi.js';
 import { Reel } from '../model/reel';
 import { PayTable } from '../model/pay-module/pay-table';
 import { Char } from '../model/char-module/char';
 import { DebugConfig } from '../model/interfaces';
 import { GameConfig } from './game-config';
-import { GameOverOverlay } from './game-over-overlay';
 import { GameStateMachine } from './game-state-machine';
 import { GameStates } from '../model/game-states';
-
-export { GameStates };
+import { SKILL_CHARGE_MAX } from '../model/constants/skill';
+import { clearWinHighlight } from '../model/pay-module/win-highlighter';
+import type { GameReadState, GameTransitions, PotionPricing, GameDebug } from './game-state';
 
 @Injectable({ providedIn: 'root' })
-export class GameLogicService {
+export class GameLogicService implements GameReadState, GameTransitions, PotionPricing, GameDebug {
 	public readonly DEFAULT_DMG = GameConfig.DEFAULT_DMG;
-	private _potionPrice = GameConfig.INITIAL_POTION_PRICE;
+	readonly potionPrice = signal<number>(GameConfig.INITIAL_POTION_PRICE);
 	public readonly POTION_HEALTH = GameConfig.POTION_HEALTH;
 	public debugConfig: DebugConfig | undefined;
-	public readonly stateMachine = new GameStateMachine();
-	private readonly _gameOverOverlay = new GameOverOverlay();
-	private cleanupFns: (() => void)[] = [];
+	public readonly stateMachine = inject(GameStateMachine);
+	private readonly _gameOver$ = new Subject<string>();
+	public readonly gameOver$ = this._gameOver$.asObservable();
 	private currentContext?: { sceneRoot: Container; reels: Reel; payTable: PayTable; char: Char };
 
 	constructor() {
-		this._gameOverOverlay.onRestart(() => window.location.reload());
-		this.registerStateHandlers();
-	}
-
-	public get potionPrice(): number {
-		return this._potionPrice;
+		this.stateMachine.onEnter(GameStates.LOSE, () => this.handleLose());
 	}
 
 	public increasePotionPrice(): void {
-		this._potionPrice *= GameConfig.POTION_PRICE_MULTIPLIER;
+		this.potionPrice.update(p => p * GameConfig.POTION_PRICE_MULTIPLIER);
 	}
 
 	public get state(): GameStates {
@@ -47,38 +43,58 @@ export class GameLogicService {
 		this.currentContext = { sceneRoot, reels, payTable, char };
 	}
 
-	private registerStateHandlers(): void {
-		this.cleanupFns.push(
-			this.stateMachine.onEnter(GameStates.START, () => this.handleStart()),
-			this.stateMachine.onEnter(GameStates.RESULTS, () => this.handleResults()),
-			this.stateMachine.onEnter(GameStates.LOSE, () => this.handleLose())
-		);
+	public activateSkill(char: Char, reel: Reel): void {
+		const canActivate = (char.specialBar() >= SKILL_CHARGE_MAX && this.state === GameStates.WAITING) ||
+			this.state === GameStates.WIN;
+
+		if (!canActivate) return;
+
+		if (this.state === GameStates.WIN) {
+			const winPos = reel.reelWinSlotPos;
+			if (winPos !== undefined) { clearWinHighlight(reel, winPos); }
+		}
+
+		char.setUsingSkill(true);
+		char.charContext.useClassSkill(char.charContext.target);
+
+		if (char.charContext.target instanceof Char) {
+			char.setUsingSkill(false);
+			char.setSpecialBar(0);
+		}
 	}
 
-	private handleStart(): void {
+	public buyPotion(char: Char): void {
+		const price = this.potionPrice();
+		if (char.credits() < price) return;
+
+		char.heal(this.POTION_HEALTH);
+		char.removeCredits(price);
+		this.increasePotionPrice();
+	}
+
+	public handleStart(): void {
 		if (!this.currentContext) return;
 		const { reels, char } = this.currentContext;
-		if (char.credits > 0) {
-			if (!char.usingSkill) {
+		if (char.credits() > 0) {
+			if (!char.usingSkill()) {
 				char.removeCredits(GameConfig.CREDIT_COST);
 			}
-			this.rollSlots(reels, char.usingSkill);
+			this.rollSlots(reels, char.usingSkill());
 		} else {
 			console.warn('Not enough credits to play');
 			this.stateMachine.transition(GameStates.WAITING);
 		}
 	}
 
-	private handleResults(): void {
+	public handleResults(): void {
 		if (!this.currentContext) return;
 		this.checkReelResults(this.currentContext.reels, this.currentContext.payTable, this.currentContext.char);
 	}
 
 	private handleLose(): void {
 		if (!this.currentContext) return;
-		this._gameOverOverlay.setup(this.currentContext.sceneRoot);
-		this._gameOverOverlay.showDeath(
-			'You have survived for ' + this.currentContext.char.roundsAlive.toString() + ' rounds'
+		this._gameOver$.next(
+			'You have survived for ' + this.currentContext.char.roundsAlive().toString() + ' rounds'
 		);
 	}
 
@@ -93,11 +109,6 @@ export class GameLogicService {
 	}
 
 	public destroy(): void {
-		for (const fn of this.cleanupFns) {
-			fn();
-		}
-		
-		this.cleanupFns = [];
-		this._gameOverOverlay.destroy();
+		this._gameOver$.complete();
 	}
 }

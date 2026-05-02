@@ -1,8 +1,7 @@
 import { Container, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 import { SCREEN_EFFECTS as ANIM } from '../../constants/animation';
-
-const COLOR_DAMAGE_FLASH = 0xe01818;
+import { COLOR_DAMAGE_FLASH } from '../../constants/colors';
 const COLOR_PROTECTED_FLASH = 0x4da6ff;
 
 interface ShakeConfig {

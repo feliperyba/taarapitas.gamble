@@ -1,20 +1,20 @@
 <div class="game-shell">
   <div #pixiContainer class="pixi-host"></div>
-  @if (showLoader) {
+  @if (showLoader()) {
     <section
       class="loading-screen"
-      [class.loading-screen--closing]="loaderClosing"
-      [class.loading-screen--failed]="loadingFailed"
-      [attr.aria-busy]="!loadingFailed"
+      [class.loading-screen--closing]="loaderClosing()"
+      [class.loading-screen--failed]="loadingFailed()"
+      [attr.aria-busy]="!loadingFailed()"
       aria-live="polite"
     >
-      <div class="loading-screen__sigil" [style.--loader-progress]="bootProgress + '%'">
+      <div class="loading-screen__sigil" [style.--loader-progress]="bootProgress() + '%'">
         <div class="loading-screen__sigil-core">
-          <strong>{{ bootProgress | number:'1.0-0' }}%</strong>
-          <span>{{ loadingFailed ? 'Retry' : 'Loading' }}</span>
+          <strong>{{ bootProgress() | number:'1.0-0' }}%</strong>
+          <span>{{ loadingFailed() ? 'Retry' : 'Loading' }}</span>
         </div>
       </div>
-      @if (loadingFailed) {
+      @if (loadingFailed()) {
         <button class="loading-screen__retry" type="button" (click)="reloadPage()">
           Reload
         </button>

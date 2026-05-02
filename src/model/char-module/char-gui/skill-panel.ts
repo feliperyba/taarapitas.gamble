@@ -3,12 +3,10 @@ import { gsap } from 'gsap';
 import { Char } from '../char';
 import { Reel } from '../../reel';
 import { GameLogicService } from '../../../services/game-logic.service';
-import { GameStates } from '../../game-states';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
-import { createGradientTextStyle, buildPanelGraphics } from '../../pixi-helpers';
+import { buildPanelGraphics, createPanelTitleStyle, createPanelNoteStyle } from '../../pixi-helpers';
 import { SKILL_CHARGE_MAX } from '../../constants/skill';
-import { clearWinHighlight } from '../../pay-module/win-highlighter';
 import { SKILL_PANEL as LAYOUT } from '../../constants/layout';
 import { SKILL_PANEL as ANIM } from '../../constants/animation';
 const COLOR_SKILL_GLOW_OUTER = 0xf0912c;
@@ -18,28 +16,20 @@ export class SkillPanel {
 	private skillReady!: Sprite;
 	private skillOff!: Sprite;
 	private skillGlow!: Graphics;
+	private skillContainer!: Container;
 	private skillStateText: Text = new Text({ text: '' });
 	private skillPulseActive = false;
 	private lastRenderedSpecialBar = -1;
 
-	private readonly panelTitleStyle = createGradientTextStyle({
-		fillStops: ['#fff5cf', '#c18f40'],
-		fontSize: 20,
-		strokeWidth: 3,
-		letterSpacing: 1
-	});
+	private readonly panelTitleStyle = createPanelTitleStyle();
 
-	private readonly panelNoteStyle = createGradientTextStyle({
-		fillStops: ['#fef4dc', '#be9860'],
-		fontSize: 18,
-		strokeWidth: 3,
-		wordWrap: true,
-		wordWrapWidth: SCENE_LAYOUT.game.skillWell.width - 130
-	});
+	private readonly panelNoteStyle = createPanelNoteStyle(
+		SCENE_LAYOUT.game.skillWell.width - 130
+	);
 
 	public setup(parent: Container, char: Char, gameLogicService: GameLogicService, reel: Reel): void {
 		const skillWell = SCENE_LAYOUT.game.skillWell;
-		const skillContainer = new Container();
+		this.skillContainer = new Container();
 		const panel = new Graphics();
 		const trim = new Graphics();
 		const title = new Text({ text: 'SKILL', style: this.panelTitleStyle });
@@ -53,11 +43,11 @@ export class SkillPanel {
 		title.x = skillWell.centerX;
 		title.y = skillWell.y + 4;
 
-		skillContainer.x = skillWell.centerX;
-		skillContainer.y = skillWell.y + LAYOUT.CONTAINER_Y_OFFSET;
-		skillContainer.eventMode = 'static';
-		skillContainer.cursor = 'pointer';
-		skillContainer.hitArea = new Rectangle(-skillWell.width / 2 + LAYOUT.HIT_AREA_WIDTH_OFFSET, LAYOUT.HIT_AREA_Y_OFFSET, skillWell.width - LAYOUT.HIT_AREA_WIDTH_OFFSET * 2, LAYOUT.HIT_AREA_HEIGHT);
+		this.skillContainer.x = skillWell.centerX;
+		this.skillContainer.y = skillWell.y + LAYOUT.CONTAINER_Y_OFFSET;
+		this.skillContainer.eventMode = 'static';
+		this.skillContainer.cursor = 'pointer';
+		this.skillContainer.hitArea = new Rectangle(-skillWell.width / 2 + LAYOUT.HIT_AREA_WIDTH_OFFSET, LAYOUT.HIT_AREA_Y_OFFSET, skillWell.width - LAYOUT.HIT_AREA_WIDTH_OFFSET * 2, LAYOUT.HIT_AREA_HEIGHT);
 
 		this.skillGlow.circle(0, 0, LAYOUT.GLOW_OUTER_RADIUS).fill({ color: COLOR_SKILL_GLOW_OUTER, alpha: 0.1 });
 		this.skillGlow.circle(0, 0, LAYOUT.GLOW_INNER_RADIUS).fill({ color: COLOR_SKILL_GLOW_INNER, alpha: 0.74 });
@@ -75,37 +65,18 @@ export class SkillPanel {
 		this.skillStateText.x = skillWell.centerX;
 		this.skillStateText.y = skillWell.y + LAYOUT.STATE_TEXT_Y_OFFSET;
 
-		skillContainer.on('pointerdown', () => {
-			if (
-				(char.specialBar >= SKILL_CHARGE_MAX && gameLogicService.state === GameStates.WAITING) ||
-				gameLogicService.state === GameStates.WIN
-			) {
-				if (gameLogicService.state === GameStates.WIN) {
-					const winPos = reel.reelWinSlotPos;
-					
-					if (winPos !== undefined) {
-						clearWinHighlight(reel, winPos);
-					}
-				}
-
-				char.setUsingSkill(true);
-				char.charContext.useClassSkill(char.charContext.target);
-
-				if (char.charContext.target instanceof Char) {
-					char.setUsingSkill(false);
-					char.setSpecialBar(0);
-				}
-			}
+		this.skillContainer.on('pointerdown', () => {
+			gameLogicService.activateSkill(char, reel);
 		});
 
-		skillContainer.addChild(this.skillGlow);
-		skillContainer.addChild(this.skillOff);
-		skillContainer.addChild(this.skillReady);
+		this.skillContainer.addChild(this.skillGlow);
+		this.skillContainer.addChild(this.skillOff);
+		this.skillContainer.addChild(this.skillReady);
 
 		parent.addChild(panel);
 		parent.addChild(trim);
 		parent.addChild(title);
-		parent.addChild(skillContainer);
+		parent.addChild(this.skillContainer);
 		parent.addChild(this.skillStateText);
 	}
 
@@ -147,5 +118,6 @@ export class SkillPanel {
 
 	public destroy(): void {
 		gsap.killTweensOf(this.skillReady);
+		this.skillContainer?.removeAllListeners();
 	}
 }

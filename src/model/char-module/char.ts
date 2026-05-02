@@ -1,86 +1,79 @@
+import { signal, computed, WritableSignal } from '@angular/core';
 import { Texture } from 'pixi.js';
-import { CharContext } from '../../model/char-module/char-strategy/char-strategy';
+import { CharContext } from './char-strategy/char-strategy';
 import type { PayResult, BattleOutcome } from '../interfaces';
 import type { Reel } from '../reel';
 
 export class Char {
-	public charContext!: CharContext;
+	public charContext: CharContext;
 	public readonly totalLife: number;
 
-	private _roundsAlive = 0;
-	private _isProtected = false;
-	private _usingSkill = false;
-	private _specialBar = 0;
-	private _hit = false;
-	private _life: number;
-	private _credits: number;
+	readonly roundsAlive = signal(0);
+	readonly isProtected = signal(false);
+	readonly usingSkill = signal(false);
+	readonly specialBar = signal(0);
+	readonly hit = signal(false);
+	readonly life: WritableSignal<number>;
+	readonly credits: WritableSignal<number>;
+	readonly lifePercent = computed(() => this.life() / this.totalLife);
 
 	constructor(
 		public readonly portrait: Texture,
 		life: number,
 		credits: number,
-		public readonly skillDesc: string
+		public readonly skillDesc: string,
+		charContext: CharContext
 	) {
 		this.totalLife = life;
-		this._life = life;
-		this._credits = credits;
+		this.life = signal(life);
+		this.credits = signal(credits);
+		this.charContext = charContext;
 	}
 
-	get roundsAlive(): number { return this._roundsAlive; }
-	get isProtected(): boolean { return this._isProtected; }
-	get usingSkill(): boolean { return this._usingSkill; }
-	get specialBar(): number { return this._specialBar; }
-	get hit(): boolean { return this._hit; }
-	get life(): number { return this._life; }
-	get credits(): number { return this._credits; }
-
 	public addCredits(amount: number): void {
-		this._credits += amount;
+		this.credits.update(c => c + amount);
 	}
 
 	public removeCredits(amount: number): boolean {
-		if (this._credits < amount) return false;
-		this._credits -= amount;
+		if (this.credits() < amount) return false;
+		this.credits.update(c => c - amount);
 		return true;
 	}
 
 	public setCredits(amount: number): void {
-		this._credits = amount;
+		this.credits.set(amount);
 	}
 
 	public takeDamage(amount: number): void {
-		this._life -= amount;
+		this.life.update(l => l - amount);
 	}
 
 	public heal(amount: number): void {
-		this._life += amount;
-		if (this._life > this.totalLife) {
-			this._life = this.totalLife;
-		}
+		this.life.update(l => Math.min(l + amount, this.totalLife));
 	}
 
 	public setProtected(value: boolean): void {
-		this._isProtected = value;
+		this.isProtected.set(value);
 	}
 
 	public setUsingSkill(value: boolean): void {
-		this._usingSkill = value;
+		this.usingSkill.set(value);
 	}
 
 	public setSpecialBar(value: number): void {
-		this._specialBar = value;
+		this.specialBar.set(value);
 	}
 
 	public incrementSpecialBar(): void {
-		this._specialBar += 1;
+		this.specialBar.update(v => v + 1);
 	}
 
 	public setHit(value: boolean): void {
-		this._hit = value;
+		this.hit.set(value);
 	}
 
-	public useSpecialSkill(target?: Char | Reel) {
-		this._usingSkill = true;
+	public useSpecialSkill(target?: Char | Reel): void {
+		this.usingSkill.set(true);
 		this.charContext.useClassSkill(target);
 	}
 
@@ -91,17 +84,17 @@ export class Char {
 			return 'WIN';
 		}
 
-		this._hit = true;
-		
-		if (!this._usingSkill && !this._isProtected) {
+		this.hit.set(true);
+
+		if (!this.usingSkill() && !this.isProtected()) {
 			this.takeDamage(defaultDmg);
 		}
 
-		if (this._isProtected) {
-			this._isProtected = false;
+		if (this.isProtected()) {
+			this.isProtected.set(false);
 		}
 
-		if (this._life <= 0) {
+		if (this.life() <= 0) {
 			return 'LOSE';
 		}
 
@@ -109,11 +102,11 @@ export class Char {
 	}
 
 	public finalizeRound(): void {
-		if (this._usingSkill) {
-			this._usingSkill = false;
-			this._specialBar = 0;
+		if (this.usingSkill()) {
+			this.usingSkill.set(false);
+			this.specialBar.set(0);
 		}
 
-		this._roundsAlive++;
+		this.roundsAlive.update(v => v + 1);
 	}
 }

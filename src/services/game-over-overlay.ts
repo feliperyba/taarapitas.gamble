@@ -21,6 +21,7 @@ export class GameOverOverlay {
 	private initialized = false;
 	private loseText!: Text;
 	private survivalText!: Text;
+	private endBtn!: Button;
 	private restartCallback: (() => void) | null = null;
 
 	constructor() {
@@ -29,7 +30,7 @@ export class GameOverOverlay {
 		this.container.y = DESIGN_HEIGHT / 2 - SCENE_LAYOUT.overlay.height / 2;
 	}
 
-	setup(parent: Container): void {
+	public setup(parent: Container): void {
 		if (this.initialized) return;
 		this.initialized = true;
 
@@ -69,7 +70,7 @@ export class GameOverOverlay {
 		this.survivalText.x = SCENE_LAYOUT.overlay.width / 2;
 		this.survivalText.y = SURVIVAL_TEXT_Y;
 
-		const endBtn = new Button(
+		this.endBtn = new Button(
 			96,
 			248,
 			getTexture('assets/button.png'),
@@ -78,35 +79,36 @@ export class GameOverOverlay {
 			'Restart',
 			subtitleStyle
 		);
-		endBtn.btnContainer.x = SCENE_LAYOUT.overlay.width / 2 - RESTART_BTN_X_OFFSET;
-		endBtn.btnContainer.y = RESTART_BTN_Y;
-		endBtn.btnContainer.on('pointerdown', () => {
+		this.endBtn.btnContainer.x = SCENE_LAYOUT.overlay.width / 2 - RESTART_BTN_X_OFFSET;
+		this.endBtn.btnContainer.y = RESTART_BTN_Y;
+		this.endBtn.btnContainer.on('pointerdown', () => {
 			this.restartCallback?.();
 		});
 
 		this.container.addChild(background);
 		this.container.addChild(this.loseText);
 		this.container.addChild(this.survivalText);
-		this.container.addChild(endBtn.btnContainer);
+		this.container.addChild(this.endBtn.btnContainer);
 		parent.addChild(this.container);
 	}
 
-	showDeath(message: string): void {
+	public showDeath(message: string): void {
 		if (this.container.visible) return;
 		this.loseText.text = 'You Lose!';
 		this.survivalText.text = message;
 		this.container.visible = true;
 	}
 
-	hide(): void {
+	public hide(): void {
 		this.container.visible = false;
 	}
 
-	onRestart(callback: () => void): void {
+	public onRestart(callback: () => void): void {
 		this.restartCallback = callback;
 	}
 
-	destroy(): void {
+	public destroy(): void {
+		this.endBtn?.destroy();
 		this.container.destroy({ children: true });
 		this.restartCallback = null;
 	}

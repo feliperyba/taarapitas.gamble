@@ -5,9 +5,9 @@ import { DebugConfig } from '../model/interfaces';
 @Injectable({ providedIn: 'root' })
 export class DebuggerService {
 	private readonly _debugConfig$: ReplaySubject<DebugConfig> = new ReplaySubject<DebugConfig>(1);
-	readonly debugConfig$ = this._debugConfig$.asObservable();
+	public readonly debugConfig$ = this._debugConfig$.asObservable();
 
-	announceDebugConfig(value: DebugConfig): void {
+	public announceDebugConfig(value: DebugConfig): void {
 		this._debugConfig$.next(value);
 	}
 }

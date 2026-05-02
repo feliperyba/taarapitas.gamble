@@ -21,7 +21,7 @@ export class ScreenEffects {
 
 	public setup(app: Application, altarContainer: Container, heroFrame: Sprite, heroFrameFlash: Sprite, hitBar: Sprite): void {
 		this.shakeEffects.setup(altarContainer, heroFrameFlash, hitBar);
-		this.pulseEffects.setup(app, altarContainer, heroFrame, heroFrameFlash);
+		this.pulseEffects.setup(altarContainer, heroFrame, heroFrameFlash);
 		this.particleEffects.setup(altarContainer);
 	}
 

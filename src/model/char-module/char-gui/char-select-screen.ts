@@ -1,13 +1,9 @@
 import { Sprite, Application, Texture, FillGradient, TextStyle, Graphics, Container, Rectangle, Text, NineSliceSprite } from 'pixi.js';
 import {
-	WarriorClassStrategy,
-	BerserkerClassStrategy,
-	MageClassStrategy,
-	ClericClassStrategy,
-	CharContext,
 	type CharStrategy
 } from '../../char-module/char-strategy/char-strategy';
 import type { CharSelectHandler } from '../../char-select-handler';
+import { CharTargetType } from '../../interfaces';
 import { Button } from '../../gui-module/button';
 import { getTexture } from '../../../rendering/assets';
 import { DESIGN_WIDTH, SCENE_LAYOUT } from '../../../rendering/viewport';
@@ -23,16 +19,14 @@ export class CharSelectionScreen {
 	private nameStyle!: TextStyle;
 	private buttonStyle!: TextStyle;
 
-	private readonly charClasses = [
-		new WarriorClassStrategy(),
-		new BerserkerClassStrategy(),
-		new MageClassStrategy(),
-		new ClericClassStrategy()
-	];
+	private readonly charClasses: CharStrategy[];
+
+	private readonly charButtons: Button[] = [];
 
 	public readonly selectCharContainer = new Container();
 
-	constructor(private readonly app: Application, private readonly handler: CharSelectHandler) {
+	constructor(private readonly app: Application, private readonly handler: CharSelectHandler, charClasses: CharStrategy[]) {
+		this.charClasses = charClasses;
 		this.btnTexture = getTexture('assets/button.png');
 		this.btnOverTexture = getTexture('assets/button-HOVER.png');
 		this.btnPushTexture = getTexture('assets/button-PUSH.png');
@@ -160,6 +154,7 @@ export class CharSelectionScreen {
 		const { statPanel, lifeIcon, lifeText, creditIcon, creditsText } = this.createStatRow(char, cardLayout, contentCenterX);
 		const { descPanel, skillText } = this.createSkillDesc(char, cardLayout, contentCenterX);
 		const btnSelect = this.createSelectButton(char, cardLayout, contentCenterX);
+		this.charButtons.push(btnSelect);
 
 		cardContainer.addChild(classBackground);
 		cardContainer.addChild(statPanel);
@@ -227,8 +222,8 @@ export class CharSelectionScreen {
 		const creditCenterX = contentCenterX + CHAR_SELECT.STAT_CENTER_OFFSET;
 
 		statPanel.roundRect(panelX, cardLayout.statPanelY, panelWidth, cardLayout.statPanelHeight, 6)
-			.fill({ color: 0x160905, alpha: 0.34 })
-			.stroke({ color: 0xd28a34, alpha: 0.16, width: 2 });
+			.fill({ color: CHAR_SELECT.STAT_PANEL.FILL, alpha: CHAR_SELECT.STAT_PANEL.FILL_ALPHA })
+			.stroke({ color: CHAR_SELECT.STAT_PANEL.STROKE, alpha: CHAR_SELECT.STAT_PANEL.STROKE_ALPHA, width: CHAR_SELECT.STAT_PANEL.STROKE_WIDTH });
 		lifeIcon.width = cardLayout.statIconSize;
 		lifeIcon.height = cardLayout.statIconSize;
 		lifeIcon.anchor.set(0.5);
@@ -262,8 +257,8 @@ export class CharSelectionScreen {
 		const panelWidth = cardLayout.cardWidth - cardLayout.contentInset * 2;
 
 		descPanel.roundRect(panelX, cardLayout.descPanelY, panelWidth, cardLayout.descPanelHeight, 6)
-			.fill({ color: 0x160905, alpha: 0.26 })
-			.stroke({ color: 0xd28a34, alpha: 0.14, width: 2 });
+			.fill({ color: CHAR_SELECT.DESC_PANEL.FILL, alpha: CHAR_SELECT.DESC_PANEL.FILL_ALPHA })
+			.stroke({ color: CHAR_SELECT.DESC_PANEL.STROKE, alpha: CHAR_SELECT.DESC_PANEL.STROKE_ALPHA, width: CHAR_SELECT.DESC_PANEL.STROKE_WIDTH });
 		skillText.anchor.set(0.5);
 		skillText.x = contentCenterX;
 		skillText.y = cardLayout.descPanelY + cardLayout.descPanelHeight / 2;
@@ -283,14 +278,13 @@ export class CharSelectionScreen {
 		);
 
 		btnSelect.btnContainer.on('pointerdown', () => {
-			const target = char.TARGET_TYPE === 'Char' ? undefined : this.handler.reel;
-			const context = new CharContext(char, target);
-			this.handler.char = context.createCharClass();
-			this.handler.char.charContext = context;
-
-			if (this.handler.char.charContext.target == null) {
-				this.handler.char.charContext.target = this.handler.char;
+			const createdChar = char.create();
+			if (char.TARGET_TYPE === CharTargetType.Reel) {
+				createdChar.charContext.target = this.handler.reel;
+			} else {
+				createdChar.charContext.target = createdChar;
 			}
+			this.handler.char = createdChar;
 			this.handler.setup();
 		});
 
@@ -301,6 +295,14 @@ export class CharSelectionScreen {
 	}
 
 	public destroy(): void {
+		for (const btn of this.charButtons) {
+			btn.destroy();
+		}
+		this.charButtons.length = 0;
+		this.titleStyle?.destroy();
+		this.descStyle?.destroy();
+		this.nameStyle?.destroy();
+		this.buttonStyle?.destroy();
 		this.selectCharContainer.destroy({ children: true });
 	}
 }

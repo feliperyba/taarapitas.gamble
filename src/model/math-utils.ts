@@ -19,14 +19,18 @@ export function rgbToHex(r: number, g: number, b: number): number {
 }
 
 export function mixColor(from: number, to: number, amount: number): number {
-	const clampedAmount = clamp(amount, 0, 1);
-	const fromRgb = hexToRgb(from);
-	const toRgb = hexToRgb(to);
+	const t = clamp(amount, 0, 1);
+	const fr = (from >> 16) & 0xff;
+	const fg = (from >> 8) & 0xff;
+	const fb = from & 0xff;
+	const tr = (to >> 16) & 0xff;
+	const tg = (to >> 8) & 0xff;
+	const tb = to & 0xff;
 
-	return rgbToHex(
-		Math.round(lerp(fromRgb.r, toRgb.r, clampedAmount)),
-		Math.round(lerp(fromRgb.g, toRgb.g, clampedAmount)),
-		Math.round(lerp(fromRgb.b, toRgb.b, clampedAmount))
+	return (
+		(Math.round(fr + (tr - fr) * t) << 16) |
+		(Math.round(fg + (tg - fg) * t) << 8) |
+		Math.round(fb + (tb - fb) * t)
 	);
 }
 

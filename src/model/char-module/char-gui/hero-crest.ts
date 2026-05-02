@@ -3,8 +3,8 @@ import { gsap } from 'gsap';
 import { Char } from '../char';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
+import { COLOR_WHITE, COLOR_DAMAGE_FLASH } from '../../constants/colors';
 
-const COLOR_WHITE = 0xffffff;
 const HERO_FRAME_CENTER_OFFSET = 160;
 const PORTRAIT_MASK_RADIUS_BASE = 100;
 const PORTRAIT_OFFSET_X_FRACTION = 0.05;
@@ -43,7 +43,7 @@ export class HeroCrest {
 		this.frameFlash.scale.set(frameScale);
 		this.frameFlash.x = this.frame.x;
 		this.frameFlash.y = this.frame.y;
-		this.frameFlash.tint = 0xe01818;
+		this.frameFlash.tint = COLOR_DAMAGE_FLASH;
 		this.frameFlash.alpha = 0;
 
 		const coverW = portraitMaskRadius * 5;
@@ -56,7 +56,6 @@ export class HeroCrest {
 		portrait.y = portraitCenterY + Math.round(portraitMaskRadius * PORTRAIT_OFFSET_Y_FRACTION);
 
 		portraitMask.circle(portraitCenterX, portraitCenterY, portraitMaskRadius).fill({ color: COLOR_WHITE, alpha: 1 });
-		portraitMask.alpha = 0.001;
 		portrait.mask = portraitMask;
 
 		this.protectedIcon = new Sprite(getTexture('assets/protected_icon.png'));

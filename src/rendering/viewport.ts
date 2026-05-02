@@ -223,3 +223,19 @@ export function computeViewport(actualWidth: number, actualHeight: number): View
 		bottom: DESIGN_HEIGHT
 	};
 }
+
+export function computeViewportInto(target: ViewportState, actualWidth: number, actualHeight: number): void {
+	const safeWidth = Math.max(Math.floor(actualWidth), 1);
+	const safeHeight = Math.max(Math.floor(actualHeight), 1);
+	const scale = Math.min(safeWidth / DESIGN_WIDTH, safeHeight / DESIGN_HEIGHT);
+	const contentWidth = DESIGN_WIDTH * scale;
+	const contentHeight = DESIGN_HEIGHT * scale;
+
+	target.actualWidth = safeWidth;
+	target.actualHeight = safeHeight;
+	target.scale = scale;
+	target.offsetX = Math.round((safeWidth - contentWidth) / 2);
+	target.offsetY = Math.round((safeHeight - contentHeight) / 2);
+	target.contentWidth = contentWidth;
+	target.contentHeight = contentHeight;
+}
