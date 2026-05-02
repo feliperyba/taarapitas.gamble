@@ -1,25 +1,17 @@
-import { Sprite, Application, Texture, Container, BlurFilter } from 'pixi.js';
+import { Sprite, Application, Container, BlurFilter, Texture } from 'pixi.js';
 import { GameLogicService, GameStates } from '../services/game-logic.service';
 import { getTexture } from '../rendering/assets';
+import { ReelAnimator } from './reel-animator';
+import { REEL_VALUES, type ReelData } from './reel-types';
 
-export enum REEL_POSITIONS {
-	TOP = 1,
-	CENTER = 2,
-	BOTTOM = 3
-}
-export enum REEL_VALUES {
-	X3BAR,
-	BAR,
-	X2BAR,
-	SEVEN,
-	CHERRY
-}
+export { REEL_POSITIONS, REEL_VALUES, REEL_POSITION_INDEX } from './reel-types';
+export type { ReelData } from './reel-types';
 
 export class Reel {
-	public SLOT_NUMBER = 3;
-	public REEL_WIDTH = 160;
-	public SYMBOL_SIZE = 150;
-	public DEFAULT_VAL_ORDER = [
+	public readonly SLOT_NUMBER = 3;
+	public readonly REEL_WIDTH = 160;
+	public readonly SYMBOL_SIZE = 150;
+	public readonly DEFAULT_VAL_ORDER: readonly REEL_VALUES[] = [
 		REEL_VALUES.X3BAR,
 		REEL_VALUES.BAR,
 		REEL_VALUES.X2BAR,
@@ -27,25 +19,34 @@ export class Reel {
 		REEL_VALUES.CHERRY
 	];
 
-	public reelContainer: Container = new Container();
-	public reelArr = [];
-	public reelWinSlotPos: any;
-	private slotTextures = [];
-	private tweening = [];
+	public readonly reelContainer: Container = new Container();
+	public readonly reelArr: ReelData[] = [];
+	public reelWinSlotPos: number | undefined = undefined;
+	private readonly slotTextures: Record<string, Texture> = {};
+	private readonly animator: ReelAnimator;
 
-	constructor(private app: Application, private _gameLogicService: GameLogicService) {
-		this.slotTextures = [
-			getTexture('assets/3xBAR.png'),
-			getTexture('assets/BAR.png'),
-			getTexture('assets/2xBAR.png'),
-			getTexture('assets/7.png'),
-			getTexture('assets/Cherry.png')
-		];
+	constructor(private readonly app: Application, private readonly _gameLogicService: GameLogicService) {
+		this.slotTextures = {
+			[REEL_VALUES.X3BAR]: getTexture('assets/3xBAR.png'),
+			[REEL_VALUES.BAR]: getTexture('assets/BAR.png'),
+			[REEL_VALUES.X2BAR]: getTexture('assets/2xBAR.png'),
+			[REEL_VALUES.SEVEN]: getTexture('assets/7.png'),
+			[REEL_VALUES.CHERRY]: getTexture('assets/Cherry.png')
+		};
 		this.setContainers();
-		this.setAnimations(this.app);
+		this.animator = new ReelAnimator(
+			this.app,
+			this.reelContainer,
+			this.reelArr,
+			this.slotTextures,
+			this.SYMBOL_SIZE,
+			this.DEFAULT_VAL_ORDER,
+			() => { this._gameLogicService.state = GameStates.RESULTS; },
+			() => this._gameLogicService.debugConfig
+		);
 	}
 
-	public setContainers() {
+	public setContainers(): void {
 		this.reelContainer.width = this.REEL_WIDTH / 2 * 5;
 		this.reelContainer.height = this.SYMBOL_SIZE / 2 * 10;
 
@@ -55,13 +56,13 @@ export class Reel {
 
 			this.reelContainer.addChild(rc);
 
-			const reel = {
+			const reel: ReelData = {
 				container: rc,
 				symbols: [],
-				symbolsPosition: [],
+				symbolsPosition: this.DEFAULT_VAL_ORDER.slice(),
 				position: 0,
 				previousPosition: 0,
-				randomSymbolValue: 0,
+				randomSymbolValue: REEL_VALUES.X3BAR,
 				randomPosValue: 0,
 				blur: new BlurFilter()
 			};
@@ -70,8 +71,8 @@ export class Reel {
 			reel.blur.strengthY = 0;
 			rc.filters = [];
 
-			for (let j = 0; j < this.slotTextures.length; j++) {
-				const symbol = new Sprite(this.slotTextures[j]);
+			for (let j = 0; j < this.DEFAULT_VAL_ORDER.length; j++) {
+				const symbol = new Sprite(this.slotTextures[this.DEFAULT_VAL_ORDER[j]]);
 
 				symbol.y = j * this.SYMBOL_SIZE;
 				symbol.scale.x = symbol.scale.y = Math.min(
@@ -83,149 +84,28 @@ export class Reel {
 				rc.addChild(symbol);
 			}
 
-			reel.symbolsPosition = this.DEFAULT_VAL_ORDER.slice();
 			this.reelArr.push(reel);
 		}
 	}
 
-	public setAnimations(app: any) {
-		app.ticker.add((ticker) => {
-			for (let i = 0; i < this.reelArr.length; i++) {
-				let r = this.reelArr[i];
-
-				r.blur.strengthY = (r.position - r.previousPosition) * ticker.deltaTime;
-				r.previousPosition = r.position;
-
-				for (let j = 0; j < r.symbols.length; j++) {
-					r.previousPosition = r.position;
-					let s = r.symbols[j];
-					let prevy = s.y;
-					s.y = ((r.position + j) % r.symbols.length) * this.SYMBOL_SIZE - this.SYMBOL_SIZE;
-
-					if (s.y < 0 && prevy > this.SYMBOL_SIZE) {
-						s.texture = this.slotTextures[r.symbolsPosition[j]];
-
-						s.scale.x = s.scale.y = Math.min(
-							this.SYMBOL_SIZE / s.texture.width,
-							this.SYMBOL_SIZE / s.texture.height
-						);
-						s.x = Math.round((this.SYMBOL_SIZE - s.width) / 2);
-					}
-				}
-			}
-		});
-
-		app.ticker.add(() => {
-			let now = Date.now();
-			let remove = [];
-			for (let i = 0; i < this.tweening.length; i++) {
-				let t = this.tweening[i];
-				let phase = Math.min(1, (now - t.start) / t.time);
-
-				t.object[t.property] = this.lerp(t.propertyBeginValue, t.target, t.easing(phase));
-				if (t.change) t.change(t);
-				if (phase == 1) {
-					t.object[t.property] = t.target;
-					if (t.complete) t.complete(t);
-					remove.push(t);
-				}
-			}
-			for (let i = 0; i < remove.length; i++) {
-				this.tweening.splice(this.tweening.indexOf(remove[i]), 1);
-			}
-		});
+	public spin(isSkill?: boolean): void {
+		this.animator.spin(isSkill);
 	}
 
-	public spin(isSkill?: boolean) {
-		for (let i = 0; i < this.reelArr.length; i++) {
-			let r = this.reelArr[i];
-			if (this._gameLogicService.debugConfig != undefined && this._gameLogicService.debugConfig.isFixed == true) {
-				const currReel = this._gameLogicService.debugConfig.reels[i];
-
-				for (let j = 0; j < r.symbols.length; j++) {
-					if (r.symbolsPosition[currReel.position.value] == currReel.symbol.value) {
-						break;
-					}
-					this.arrayRotateOne(r.symbolsPosition, true);
-				}
-			} else if (!isSkill) {
-				r.randomPosValue = Math.floor(Math.random() * (this.slotTextures.length - 1));
-				r.randomSymbolValue = Math.floor(Math.random() * (this.slotTextures.length - 1));
-
-				for (let j = 0; j < r.symbols.length; j++) {
-					if (r.symbolsPosition[r.randomPosValue] == r.randomSymbolValue) {
-						break;
-					}
-					this.arrayRotateOne(r.symbolsPosition, true);
-				}
-			}
-			const blur = new BlurFilter();
-			blur.strengthX = 0.85;
-			blur.strengthY = 0;
-			this.reelContainer.children[i].filters = [ blur ];
-
-			let extra = 100 * i;
-			let start = 0;
-			if (i == 0) {
-				start = 200;
-			} else {
-				start = 0;
-			}
-
-			this.tweenTo(
-				r,
-				'position',
-				r.position + 10 + i * 5 + extra + start,
-				2000 + i * 500 + extra,
-				this.backout(0.4),
-				null,
-				i == this.reelArr.length - 1
-					? () => {
-							this.reelContainer.children[i].filters = [];
-							this.reelContainer.filters = [];
-							this._gameLogicService.state = GameStates.RESULTS;
-						}
-					: () => {
-							this.reelContainer.children[i].filters = [];
-							this.reelContainer.filters = [];
-						}
-			);
+	public destroy(): void {
+		this.animator.destroy();
+		for (const reel of this.reelArr) {
+			reel.blur.destroy();
 		}
+		this.reelContainer.destroy({ children: true });
 	}
 
-	public backout = function(amount) {
-		return function(t) {
-			return --t * t * ((amount + 1) * t + amount) + 1;
-		};
-	};
-
-	public lerp(a1, a2, t) {
-		return a1 * (1 - t) + a2 * t;
+	public arrayRotateOne(arr: REEL_VALUES[], reverse: boolean): void {
+		if (reverse) arr.unshift(arr.pop()!);
+		else arr.push(arr.shift()!);
 	}
 
-	public tweenTo(object, property, target, time, easing, onchange, oncomplete) {
-		const tween = {
-			object: object,
-			property: property,
-			propertyBeginValue: object[property],
-			target: target,
-			easing: easing,
-			time: time,
-			change: onchange,
-			complete: oncomplete,
-			start: Date.now()
-		};
-
-		this.tweening.push(tween);
-		return tween;
-	}
-
-	public arrayRotateOne(arr, reverse) {
-		if (reverse) arr.unshift(arr.pop());
-		else arr.push(arr.shift());
-		return arr;
-	}
-	public hex2rgb(hex) {
-		return [ ((hex >> 16) & 0xff) / 255, ((hex >> 8) & 0xff) / 255, (hex & 0xff) / 255 ];
+	public setGameState(state: GameStates): void {
+		this._gameLogicService.stateMachine.transition(state);
 	}
 }

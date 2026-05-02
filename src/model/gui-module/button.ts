@@ -1,21 +1,25 @@
 import { Sprite, Rectangle, Texture, TextStyle, Container, Text } from 'pixi.js';
 
+const BUTTON_TEXT_Y_RATIO = 0.45;
+const DISABLED_CONTAINER_ALPHA = 0.62;
+const DISABLED_TEXT_ALPHA = 0.86;
+
 export class Button {
-	public btnContainer = new Container();
-	public Btn: Sprite;
-	public btnText: Text;
+	public readonly btnContainer = new Container();
+	public readonly Btn!: Sprite;
+	public readonly btnText!: Text;
 	private disabled = false;
 	private hovered = false;
 	private pressed = false;
 
 	constructor(
-		private containerHeight: number,
-		private containerWidth: number,
-		private textureBtn: Texture,
-		private textureBtnOver: Texture,
-		private textureBtnDown: Texture,
-		public text: string,
-		private style: TextStyle
+		private readonly containerHeight: number,
+		private readonly containerWidth: number,
+		private readonly textureBtn: Texture,
+		private readonly textureBtnOver: Texture,
+		private readonly textureBtnDown: Texture,
+		public readonly text: string,
+		private readonly style: TextStyle
 	) {
 		this.btnContainer.hitArea = new Rectangle(0, 0, containerWidth, containerHeight);
 
@@ -49,7 +53,7 @@ export class Button {
 		this.btnText = new Text({ text, style });
 		this.btnText.anchor.set(0.5);
 		this.btnText.x = this.containerWidth / 2;
-		this.btnText.y = this.containerHeight * 0.45;
+		this.btnText.y = this.containerHeight * BUTTON_TEXT_Y_RATIO;
 
 		this.btnContainer.addChild(this.Btn);
 		this.btnContainer.addChild(this.btnText);
@@ -89,9 +93,9 @@ export class Button {
 			return;
 		}
 		this.disabled = disabled;
-		this.btnContainer.alpha = disabled ? 0.62 : 1;
+		this.btnContainer.alpha = disabled ? DISABLED_CONTAINER_ALPHA : 1;
 		this.btnContainer.cursor = disabled ? 'default' : 'pointer';
-		this.btnText.alpha = disabled ? 0.86 : 1;
+		this.btnText.alpha = disabled ? DISABLED_TEXT_ALPHA : 1;
 		this.updateTexture();
 	}
 }

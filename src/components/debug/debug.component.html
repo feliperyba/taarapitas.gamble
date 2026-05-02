@@ -71,11 +71,11 @@
         <div class="col-sm" *ngFor="let reel of reelArr;let index = index">
           <div class="row">
             <select [(ngModel)]="reelArr[index].value" (ngModelChange)="setReelValue(index,$event)" [disabled]="!isFixed">
-              <option [value]=0>x3BAR</option>
-              <option [value]=1>BAR</option>
-              <option [value]=2>x2BAR</option>
-              <option [value]=3>SEVEN</option>
-              <option [value]=4>CHERRY</option>
+              <option [value]="'X3BAR'">x3BAR</option>
+              <option [value]="'BAR'">BAR</option>
+              <option [value]="'X2BAR'">x2BAR</option>
+              <option [value]="'SEVEN'">SEVEN</option>
+              <option [value]="'CHERRY'">CHERRY</option>
             </select>
           </div>
         </div>
@@ -87,9 +87,9 @@
         <div class="col-sm" *ngFor="let pos of posArr;let index = index">
           <div class="row">
             <select [(ngModel)]="posArr[index].value" (ngModelChange)="setPosValue(index,$event)" [disabled]="!isFixed" style="max-width: 5rem;">
-              <option [value]=1>TOP</option>
-              <option [value]=2>CENTER</option>
-              <option [value]=3>BOTTOM</option>
+              <option [value]="'TOP'">TOP</option>
+              <option [value]="'CENTER'">CENTER</option>
+              <option [value]="'BOTTOM'">BOTTOM</option>
             </select>
           </div>
         </div>

@@ -1,282 +1,253 @@
-import { Reel, REEL_POSITIONS, REEL_VALUES } from '../../../model/reel';
+import { Reel, REEL_POSITION_INDEX, REEL_POSITIONS, REEL_VALUES } from '../../../model/reel';
 import { Texture } from 'pixi.js';
 import { getTexture } from '../../../rendering/assets';
 
-export enum COMBINATIONS {
-	CHERRY_TOP = 2000,
-	CHERRY_CENTER = 1000,
-	CHERRY_BOTTOM = 4000,
-	SEVEN = 150,
-	SEVEN_CHERRY = 75,
-	X3BAR = 50,
-	X2BAR = 20,
-	BAR = 10,
-	ANY_BAR = 5
+import { COMBINATIONS } from '../combinations';
+
+const WIN_TINT = 0xff0000;
+const MATCH_COUNT = 3;
+const ALL_POSITIONS: REEL_POSITIONS[] = [REEL_POSITIONS.TOP, REEL_POSITIONS.CENTER, REEL_POSITIONS.BOTTOM];
+
+export interface PayStrategy {
+	readonly payIcon: Texture;
+	readonly enumIndex: COMBINATIONS;
+	readonly combinationDescription: string;
+	readonly description: string;
+	check(reel: Reel): COMBINATIONS | null;
 }
-export namespace PayTableStrategy {
-	export interface PayStrategy {
-		check(reel: Reel): COMBINATIONS;
-	}
 
-	export class PayTableContext {
-		constructor(public strategy: PayStrategy, private reel: Reel) {}
+export class CherryTopStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/CherryIcon.png');
+	public readonly enumIndex = COMBINATIONS.CHERRY_TOP;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Top';
 
-		public executeStrategy(): COMBINATIONS {
-			return this.strategy.check(this.reel);
+	public check(reel: Reel): COMBINATIONS | null {
+		for (const r of reel.reelArr) {
+			if (r.symbolsPosition[REEL_POSITION_INDEX[REEL_POSITIONS.TOP]] !== REEL_VALUES.CHERRY) {
+				return null;
+			}
 		}
-	}
-
-	export class CherryTopStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/CherryIcon.png');
-		public enumIndex = COMBINATIONS.CHERRY_TOP;
-		public combDesc = 'X3 ';
-		public desc = 'Top';
-
-		public check(reel: Reel): COMBINATIONS {
-			for (let r of reel.reelArr) {
-				if (r.symbolsPosition[REEL_POSITIONS.TOP] != REEL_VALUES.CHERRY) {
-					return null;
-				}
-			}
-			for (let r of reel.reelArr) {
-				r.container.children[REEL_POSITIONS.TOP].tint = 1 * 0xff0000;
-			}
-			reel.reelWinSlotPos = REEL_POSITIONS.TOP;
-			return COMBINATIONS.CHERRY_TOP;
+		for (const r of reel.reelArr) {
+			r.container.children[REEL_POSITION_INDEX[REEL_POSITIONS.TOP]].tint = WIN_TINT;
 		}
+		reel.reelWinSlotPos = REEL_POSITION_INDEX[REEL_POSITIONS.TOP];
+		return COMBINATIONS.CHERRY_TOP;
 	}
+}
 
-	export class CherryCenterStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/CherryIcon.png');
-		public enumIndex = COMBINATIONS.CHERRY_CENTER;
-		public combDesc = 'X3 ';
-		public desc = 'Center';
+export class CherryCenterStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/CherryIcon.png');
+	public readonly enumIndex = COMBINATIONS.CHERRY_CENTER;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Center';
 
-		public check(reel: Reel): COMBINATIONS {
-			for (let r of reel.reelArr) {
-				if (r.symbolsPosition[REEL_POSITIONS.CENTER] != REEL_VALUES.CHERRY) {
-					return null;
-				}
+	public check(reel: Reel): COMBINATIONS | null {
+		for (const r of reel.reelArr) {
+			if (r.symbolsPosition[REEL_POSITION_INDEX[REEL_POSITIONS.CENTER]] !== REEL_VALUES.CHERRY) {
+				return null;
 			}
-
-			for (let r of reel.reelArr) {
-				r.container.children[REEL_POSITIONS.CENTER].tint = 1 * 0xff0000;
-			}
-			reel.reelWinSlotPos = REEL_POSITIONS.CENTER;
-			return COMBINATIONS.CHERRY_CENTER;
 		}
+
+		for (const r of reel.reelArr) {
+			r.container.children[REEL_POSITION_INDEX[REEL_POSITIONS.CENTER]].tint = WIN_TINT;
+		}
+		reel.reelWinSlotPos = REEL_POSITION_INDEX[REEL_POSITIONS.CENTER];
+		return COMBINATIONS.CHERRY_CENTER;
 	}
+}
 
-	export class CherryBottonStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/CherryIcon.png');
-		public enumIndex = COMBINATIONS.CHERRY_BOTTOM;
-		public combDesc = 'X3 ';
-		public desc = 'Botton';
+export class CherryBottonStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/CherryIcon.png');
+	public readonly enumIndex = COMBINATIONS.CHERRY_BOTTOM;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Botton';
 
-		public check(reel: Reel): COMBINATIONS {
-			for (let r of reel.reelArr) {
-				if (r.symbolsPosition[REEL_POSITIONS.BOTTOM] != REEL_VALUES.CHERRY) {
-					return null;
-				}
+	public check(reel: Reel): COMBINATIONS | null {
+		for (const r of reel.reelArr) {
+			if (r.symbolsPosition[REEL_POSITION_INDEX[REEL_POSITIONS.BOTTOM]] !== REEL_VALUES.CHERRY) {
+				return null;
 			}
-			for (let r of reel.reelArr) {
-				r.container.children[REEL_POSITIONS.BOTTOM].tint = 1 * 0xff0000;
-			}
-			reel.reelWinSlotPos = REEL_POSITIONS.BOTTOM;
-			return COMBINATIONS.CHERRY_BOTTOM;
 		}
+		for (const r of reel.reelArr) {
+			r.container.children[REEL_POSITION_INDEX[REEL_POSITIONS.BOTTOM]].tint = WIN_TINT;
+		}
+		reel.reelWinSlotPos = REEL_POSITION_INDEX[REEL_POSITIONS.BOTTOM];
+		return COMBINATIONS.CHERRY_BOTTOM;
 	}
+}
 
-	export class SevenStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/7Icon.png');
-		public enumIndex = COMBINATIONS.SEVEN;
-		public combDesc = 'X3 ';
-		public desc = 'Any';
+export class SevenStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/7Icon.png');
+	public readonly enumIndex = COMBINATIONS.SEVEN;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Any';
 
-		public check(reel: Reel): COMBINATIONS {
-			let count = 0;
-			const posValues = Object.keys(REEL_POSITIONS)
-				.map((k) => REEL_POSITIONS[k])
-				.filter((v) => typeof v === 'number') as number[];
+	public check(reel: Reel): COMBINATIONS | null {
+		let count = 0;
 
-			for (let position of posValues) {
-				for (let r of reel.reelArr) {
-					if (r.symbolsPosition[position] == REEL_VALUES.SEVEN) {
-						count++;
-					}
+		for (const position of ALL_POSITIONS) {
+			for (const r of reel.reelArr) {
+				if (r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.SEVEN) {
+					count++;
 				}
-				if (count == 3) {
-					for (let r of reel.reelArr) {
-						r.container.children[position].tint = 1 * 0xff0000;
-					}
-					reel.reelWinSlotPos = position;
-					return COMBINATIONS.SEVEN;
-				}
-				count = 0;
 			}
-			return null;
+			if (count === MATCH_COUNT) {
+				for (const r of reel.reelArr) {
+					r.container.children[REEL_POSITION_INDEX[position]].tint = WIN_TINT;
+				}
+				reel.reelWinSlotPos = REEL_POSITION_INDEX[position];
+				return COMBINATIONS.SEVEN;
+			}
+			count = 0;
 		}
+		return null;
 	}
+}
 
-	export class SevenCherryStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/CherrySevenIcon.png');
-		public enumIndex = COMBINATIONS.SEVEN_CHERRY;
-		public combDesc = 'Any';
-		public desc = 'Any';
+export class SevenCherryStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/CherrySevenIcon.png');
+	public readonly enumIndex = COMBINATIONS.SEVEN_CHERRY;
+	public readonly combinationDescription = 'Any';
+	public readonly description = 'Any';
 
-		public check(reel: Reel): COMBINATIONS {
-			let count = 0;
-			const posValues = Object.keys(REEL_POSITIONS)
-				.map((k) => REEL_POSITIONS[k])
-				.filter((v) => typeof v === 'number') as number[];
+	public check(reel: Reel): COMBINATIONS | null {
+		let count = 0;
 
-			for (let position of posValues) {
-				for (let r of reel.reelArr) {
-					if (
-						r.symbolsPosition[position] == REEL_VALUES.SEVEN ||
-						r.symbolsPosition[position] == REEL_VALUES.CHERRY
-					) {
-						count++;
-					}
+		for (const position of ALL_POSITIONS) {
+			for (const r of reel.reelArr) {
+				if (
+					r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.SEVEN ||
+					r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.CHERRY
+				) {
+					count++;
 				}
-				if (count == 3) {
-					for (let r of reel.reelArr) {
-						r.container.children[position].tint = 1 * 0xff0000;
-					}
-					reel.reelWinSlotPos = position;
-					return COMBINATIONS.SEVEN_CHERRY;
-				}
-				count = 0;
 			}
-			return null;
+			if (count === MATCH_COUNT) {
+				for (const r of reel.reelArr) {
+					r.container.children[REEL_POSITION_INDEX[position]].tint = WIN_TINT;
+				}
+				reel.reelWinSlotPos = REEL_POSITION_INDEX[position];
+				return COMBINATIONS.SEVEN_CHERRY;
+			}
+			count = 0;
 		}
+		return null;
 	}
+}
 
-	export class X3BarStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/X3BarIcon.png');
-		public enumIndex = COMBINATIONS.X3BAR;
-		public combDesc = 'X3 ';
-		public desc = 'Any';
+export class X3BarStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/X3BarIcon.png');
+	public readonly enumIndex = COMBINATIONS.X3BAR;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Any';
 
-		public check(reel: Reel): COMBINATIONS {
-			let count = 0;
-			const posValues = Object.keys(REEL_POSITIONS)
-				.map((k) => REEL_POSITIONS[k])
-				.filter((v) => typeof v === 'number') as number[];
+	public check(reel: Reel): COMBINATIONS | null {
+		let count = 0;
 
-			for (let position of posValues) {
-				for (let r of reel.reelArr) {
-					if (r.symbolsPosition[position] == REEL_VALUES.X3BAR) {
-						count++;
-					}
+		for (const position of ALL_POSITIONS) {
+			for (const r of reel.reelArr) {
+				if (r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.X3BAR) {
+					count++;
 				}
-				if (count == 3) {
-					for (let r of reel.reelArr) {
-						r.container.children[position].tint = 1 * 0xff0000;
-					}
-					reel.reelWinSlotPos = position;
-					return COMBINATIONS.X3BAR;
-				}
-				count = 0;
 			}
-			return null;
+			if (count === MATCH_COUNT) {
+				for (const r of reel.reelArr) {
+					r.container.children[REEL_POSITION_INDEX[position]].tint = WIN_TINT;
+				}
+				reel.reelWinSlotPos = REEL_POSITION_INDEX[position];
+				return COMBINATIONS.X3BAR;
+			}
+			count = 0;
 		}
+		return null;
 	}
+}
 
-	export class X2BarStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/X2BarIcon.png');
-		public enumIndex = COMBINATIONS.X2BAR;
-		public combDesc = 'X3 ';
-		public desc = 'Any';
+export class X2BarStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/X2BarIcon.png');
+	public readonly enumIndex = COMBINATIONS.X2BAR;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Any';
 
-		public check(reel: Reel): COMBINATIONS {
-			let count = 0;
-			const posValues = Object.keys(REEL_POSITIONS)
-				.map((k) => REEL_POSITIONS[k])
-				.filter((v) => typeof v === 'number') as number[];
+	public check(reel: Reel): COMBINATIONS | null {
+		let count = 0;
 
-			for (let position of posValues) {
-				for (let r of reel.reelArr) {
-					if (r.symbolsPosition[position] == REEL_VALUES.X2BAR) {
-						count++;
-					}
+		for (const position of ALL_POSITIONS) {
+			for (const r of reel.reelArr) {
+				if (r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.X2BAR) {
+					count++;
 				}
-				if (count == 3) {
-					for (let r of reel.reelArr) {
-						r.container.children[position].tint = 1 * 0xff0000;
-					}
-					reel.reelWinSlotPos = position;
-					return COMBINATIONS.X2BAR;
-				}
-				count = 0;
 			}
-			return null;
+			if (count === MATCH_COUNT) {
+				for (const r of reel.reelArr) {
+					r.container.children[REEL_POSITION_INDEX[position]].tint = WIN_TINT;
+				}
+				reel.reelWinSlotPos = REEL_POSITION_INDEX[position];
+				return COMBINATIONS.X2BAR;
+			}
+			count = 0;
 		}
+		return null;
 	}
+}
 
-	export class BarStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/BarIcon.png');
-		public enumIndex = COMBINATIONS.BAR;
-		public combDesc = 'X3 ';
-		public desc = 'Any';
+export class BarStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/BarIcon.png');
+	public readonly enumIndex = COMBINATIONS.BAR;
+	public readonly combinationDescription = 'X3 ';
+	public readonly description = 'Any';
 
-		public check(reel: Reel): COMBINATIONS {
-			let count = 0;
-			const posValues = Object.keys(REEL_POSITIONS)
-				.map((k) => REEL_POSITIONS[k])
-				.filter((v) => typeof v === 'number') as number[];
+	public check(reel: Reel): COMBINATIONS | null {
+		let count = 0;
 
-			for (let position of posValues) {
-				for (let r of reel.reelArr) {
-					if (r.symbolsPosition[position] == REEL_VALUES.BAR) {
-						count++;
-					}
+		for (const position of ALL_POSITIONS) {
+			for (const r of reel.reelArr) {
+				if (r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.BAR) {
+					count++;
 				}
-				if (count == 3) {
-					for (let r of reel.reelArr) {
-						r.container.children[position].tint = 1 * 0xff0000;
-					}
-					reel.reelWinSlotPos = position;
-					return COMBINATIONS.BAR;
-				}
-				count = 0;
 			}
-			return null;
+			if (count === MATCH_COUNT) {
+				for (const r of reel.reelArr) {
+					r.container.children[REEL_POSITION_INDEX[position]].tint = WIN_TINT;
+				}
+				reel.reelWinSlotPos = REEL_POSITION_INDEX[position];
+				return COMBINATIONS.BAR;
+			}
+			count = 0;
 		}
+		return null;
 	}
+}
 
-	export class AnyBarStrategy implements PayStrategy {
-		public payIcon: Texture = getTexture('assets/AnyBarIcon.png');
-		public enumIndex = COMBINATIONS.ANY_BAR;
-		public combDesc = 'Any';
-		public desc = 'Any';
+export class AnyBarStrategy implements PayStrategy {
+	public readonly payIcon: Texture = getTexture('assets/AnyBarIcon.png');
+	public readonly enumIndex = COMBINATIONS.ANY_BAR;
+	public readonly combinationDescription = 'Any';
+	public readonly description = 'Any';
 
-		public check(reel: Reel): COMBINATIONS {
-			let count = 0;
-			const posValues = Object.keys(REEL_POSITIONS)
-				.map((k) => REEL_POSITIONS[k])
-				.filter((v) => typeof v === 'number') as number[];
+	public check(reel: Reel): COMBINATIONS | null {
+		let count = 0;
 
-			for (let position of posValues) {
-				for (let r of reel.reelArr) {
-					if (
-						r.symbolsPosition[position] == REEL_VALUES.BAR ||
-						r.symbolsPosition[position] == REEL_VALUES.X2BAR ||
-						r.symbolsPosition[position] == REEL_VALUES.X3BAR
-					) {
-						count++;
-					}
+		for (const position of ALL_POSITIONS) {
+			for (const r of reel.reelArr) {
+				if (
+					r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.BAR ||
+					r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.X2BAR ||
+					r.symbolsPosition[REEL_POSITION_INDEX[position]] === REEL_VALUES.X3BAR
+				) {
+					count++;
 				}
-				if (count == 3) {
-					for (let r of reel.reelArr) {
-						r.container.children[position].tint = 1 * 0xff0000;
-					}
-					reel.reelWinSlotPos = position;
-					return COMBINATIONS.ANY_BAR;
-				}
-				count = 0;
 			}
-			return null;
+			if (count === MATCH_COUNT) {
+				for (const r of reel.reelArr) {
+					r.container.children[REEL_POSITION_INDEX[position]].tint = WIN_TINT;
+				}
+				reel.reelWinSlotPos = REEL_POSITION_INDEX[position];
+				return COMBINATIONS.ANY_BAR;
+			}
+			count = 0;
 		}
+		return null;
 	}
 }

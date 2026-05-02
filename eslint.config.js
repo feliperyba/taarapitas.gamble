@@ -12,8 +12,6 @@ module.exports = tseslint.config(
     ],
     processor: angular.processInlineTemplates,
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-empty-function": "off",
       "@typescript-eslint/no-unused-vars": "warn"
     }
   },

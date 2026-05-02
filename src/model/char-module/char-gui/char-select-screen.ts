@@ -1,25 +1,31 @@
 import { Sprite, Application, Texture, FillGradient, TextStyle, Graphics, Container, Rectangle, Text, NineSliceSprite } from 'pixi.js';
-import { CharStrategy } from '../../char-module/char-strategy/char-strategy';
+import {
+	WarriorClassStrategy,
+	BerserkerClassStrategy,
+	MageClassStrategy,
+	ClericClassStrategy,
+	CharContext
+} from '../../char-module/char-strategy/char-strategy';
 import { AppComponent } from '../../../app/app.component';
 import { Button } from '../../gui-module/button';
 import { getTexture } from '../../../rendering/assets';
 import { DESIGN_WIDTH, SCENE_LAYOUT } from '../../../rendering/viewport';
 
 export class CharSelectionScreen {
-	private btnTexture: Texture;
-	private btnOverTexture: Texture;
-	private btnPushTexture: Texture;
+	private readonly btnTexture!: Texture;
+	private readonly btnOverTexture!: Texture;
+	private readonly btnPushTexture!: Texture;
 
-	private charClasses = [
-		new CharStrategy.WarriorClassStrategy(),
-		new CharStrategy.BerserkerClassStrategy(),
-		new CharStrategy.MageClassStrategy(),
-		new CharStrategy.ClericClassStrategy()
+	private readonly charClasses = [
+		new WarriorClassStrategy(),
+		new BerserkerClassStrategy(),
+		new MageClassStrategy(),
+		new ClericClassStrategy()
 	];
 
-	public selectCharContainer = new Container();
+	public readonly selectCharContainer = new Container();
 
-	constructor(private app: Application, private appComponent: AppComponent) {
+	constructor(private readonly app: Application, private readonly appComponent: AppComponent) {
 		this.btnTexture = getTexture('assets/button.png');
 		this.btnOverTexture = getTexture('assets/button-HOVER.png');
 		this.btnPushTexture = getTexture('assets/button-PUSH.png');
@@ -31,7 +37,7 @@ export class CharSelectionScreen {
 			textureSpace: 'local'
 		});
 		titleGrad.addColorStop(0, '#753213').addColorStop(1, '#FAE888');
-		const Titlestyle = new TextStyle({
+		const titleStyle = new TextStyle({
 			fontFamily: 'Primitive',
 			fontSize: 58,
 			fontStyle: 'normal',
@@ -137,11 +143,11 @@ export class CharSelectionScreen {
 			const lifeIcon = new Sprite(getTexture('assets/life_icon.png'));
 			const creditIcon = new Sprite(getTexture('assets/credit_icon.png'));
 
-			const classNameText: Text = new Text({ text: char.NAME, style: Titlestyle });
+			const classNameText: Text = new Text({ text: char.NAME, style: titleStyle });
 			const creditsText: Text = new Text({ text: char.CREDITS.toString(), style });
 			const lifeText: Text = new Text({ text: char.LIFE.toString(), style });
 
-			const SkillText: Text = new Text({ text: char.SKILL_DESC, style: descStyle });
+			const skillText: Text = new Text({ text: char.SKILL_DESC, style: descStyle });
 
 			cardContainer.x = cardX;
 			cardContainer.y = SCENE_LAYOUT.charSelect.top;
@@ -195,9 +201,9 @@ export class CharSelectionScreen {
 			descPanel.roundRect(panelX, cardLayout.descPanelY, panelWidth, cardLayout.descPanelHeight, 6)
 				.fill({ color: 0x160905, alpha: 0.26 })
 				.stroke({ color: 0xd28a34, alpha: 0.14, width: 2 });
-			SkillText.anchor.set(0.5);
-			SkillText.x = contentCenterX;
-			SkillText.y = cardLayout.descPanelY + cardLayout.descPanelHeight / 2;
+			skillText.anchor.set(0.5);
+			skillText.x = contentCenterX;
+			skillText.y = cardLayout.descPanelY + cardLayout.descPanelHeight / 2;
 
 			const btnSelect = new Button(
 				cardLayout.selectButtonHeight,
@@ -210,8 +216,8 @@ export class CharSelectionScreen {
 			);
 
 			btnSelect.btnContainer.on('pointerdown', () => {
-				const target = char.TARGET_TYPE == 'Char' ? null : this.appComponent.reel;
-				const context = new CharStrategy.CharContext(char, target);
+				const target = char.TARGET_TYPE === 'Char' ? undefined : this.appComponent.reel;
+				const context = new CharContext(char, target);
 				this.appComponent.char = context.createCharClass();
 				this.appComponent.char.charContext = context;
 
@@ -233,7 +239,7 @@ export class CharSelectionScreen {
 			cardContainer.addChild(lifeText);
 			cardContainer.addChild(creditIcon);
 			cardContainer.addChild(creditsText);
-			cardContainer.addChild(SkillText);
+			cardContainer.addChild(skillText);
 			cardContainer.addChild(btnSelect.btnContainer);
 
 			cardContainer.eventMode = 'static';
@@ -242,5 +248,9 @@ export class CharSelectionScreen {
 			this.selectCharContainer.addChild(cardContainer);
 			i++;
 		}
+	}
+
+	public destroy(): void {
+		this.selectCharContainer.destroy({ children: true });
 	}
 }

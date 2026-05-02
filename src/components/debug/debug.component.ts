@@ -1,38 +1,29 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DebuggerService } from '../../services/debugger.service';
-
-export enum REEL_POSITIONS {
-	TOP = 1,
-	CENTER = 2,
-	BOTTOM = 3
-}
-export enum REEL_VALUES {
-	x3BAR,
-	BAR,
-	x2BAR,
-	SEVEN,
-	CHERRY
-}
+import { DebugConfig, DebugReelValue } from '../../model/interfaces';
 
 @Component({
-	standalone: false,
+	standalone: true,
 	selector: 'app-debug',
 	templateUrl: './debug.component.html',
-	styleUrls: [ './debug.component.scss' ]
+	styleUrls: [ './debug.component.scss' ],
+	imports: [FormsModule],
+	changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DebuggerComponent implements OnInit {
 	public enableDebug = false;
 	public isFixed = false;
-	public reel1: any = { value: 0 };
-	public reel2: any = { value: 0 };
-	public reel3: any = { value: 0 };
-	public pos1: any = { value: 1 };
-	public pos2: any = { value: 1 };
-	public pos3: any = { value: 1 };
+	public readonly reel1: DebugReelValue = { value: 'X3BAR' };
+	public readonly reel2: DebugReelValue = { value: 'X3BAR' };
+	public readonly reel3: DebugReelValue = { value: 'X3BAR' };
+	public readonly pos1: DebugReelValue = { value: 'TOP' };
+	public readonly pos2: DebugReelValue = { value: 'TOP' };
+	public readonly pos3: DebugReelValue = { value: 'TOP' };
 	public credits = 100;
-	public reelArr = [];
-	public posArr = [];
-	public debugObj: any = {
+	public readonly reelArr: DebugReelValue[] = [];
+	public readonly posArr: DebugReelValue[] = [];
+	public debugConfig: DebugConfig = {
 		enabledDebug: this.enableDebug,
 		isFixed: this.isFixed,
 		credits: this.credits,
@@ -42,34 +33,34 @@ export class DebuggerComponent implements OnInit {
 			Object.assign({}, { symbol: this.reel3, position: this.pos3 })
 		]
 	};
-	constructor(private _debugService: DebuggerService) {}
+	private readonly _debugService = inject(DebuggerService);
 
 	ngOnInit() {
-		this.reelArr = [ this.reel1, this.reel2, this.reel3 ];
-		this.posArr = [ this.pos1, this.pos2, this.pos3 ];
+		this.reelArr.push(this.reel1, this.reel2, this.reel3);
+		this.posArr.push(this.pos1, this.pos2, this.pos3);
 	}
 
-	public setReelValue(index: any, event: any) {
+	public setReelValue(index: number, event: string) {
 		this.reelArr[index].value = event;
 	}
 
-	public setPosValue(index: any, event: any) {
+	public setPosValue(index: number, event: string) {
 		this.posArr[index].value = event;
 	}
 
 	public setDebug() {
-		this.debugObj.enabledDebug = !this.enableDebug;
+		this.debugConfig.enabledDebug = !this.enableDebug;
 
-		if (this.debugObj.enabledDebug == false) {
-			this.debugObj.isFixed = false;
-			this.debugObj.credits = 100;
+		if (this.debugConfig.enabledDebug === false) {
+			this.debugConfig.isFixed = false;
+			this.debugConfig.credits = 100;
 		}
 
-		this._debugService.announceValue(this.debugObj);
+		this._debugService.announceValue(this.debugConfig);
 	}
 
 	public setDebugConf() {
-		this.debugObj = {
+		this.debugConfig = {
 			enabledDebug: this.enableDebug,
 			isFixed: this.isFixed,
 			credits: this.credits,
@@ -79,10 +70,10 @@ export class DebuggerComponent implements OnInit {
 				Object.assign({}, { symbol: this.reel3, position: this.pos3 })
 			]
 		};
-		this._debugService.announceValue(this.debugObj);
+		this._debugService.announceValue(this.debugConfig);
 	}
 
-	public checkCreditValue(value: any) {
+	public checkCreditValue(value: number) {
 		if (value < 1) {
 			this.credits = 1;
 		}

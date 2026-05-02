@@ -1,62 +1,118 @@
 import { Texture } from 'pixi.js';
-import { GameLogicService, GameStates } from '../../services/game-logic.service';
-import { CharStrategy } from '../../model/char-module/char-strategy/char-strategy';
+import { GameStates } from '../../services/game-logic.service';
+import { GameStateMachine } from '../../services/game-state-machine';
+import { CharContext } from '../../model/char-module/char-strategy/char-strategy';
+import type { PayResult } from '../interfaces';
+import type { Reel } from '../reel';
 
 export class Char {
-	public charContext: CharStrategy.CharContext;
-	public roundsAlive = 0;
-	public stackWins = 0;
-	public nextLevel = 1;
-	public isProtected = false;
-	public usingSkill = false;
-	public specialBar = 0;
-	public totalLife: number;
-	public hit = false;
+	public charContext!: CharContext;
+	public readonly totalLife: number;
+
+	private _roundsAlive = 0;
+	private _isProtected = false;
+	private _usingSkill = false;
+	private _specialBar = 0;
+	private _hit = false;
+	private _life: number;
+	private _credits: number;
 
 	constructor(
-		public portrait: Texture,
-		public life: number,
-		public credits: number,
-		public skillDesc: string,
-		public level = 1,
-		public exp = 0
+		public readonly portrait: Texture,
+		life: number,
+		credits: number,
+		public readonly skillDesc: string
 	) {
 		this.totalLife = life;
+		this._life = life;
+		this._credits = credits;
 	}
 
-	public useSpecialSkill(target?: any) {
-		this.usingSkill = true;
+	get roundsAlive(): number { return this._roundsAlive; }
+	get isProtected(): boolean { return this._isProtected; }
+	get usingSkill(): boolean { return this._usingSkill; }
+	get specialBar(): number { return this._specialBar; }
+	get hit(): boolean { return this._hit; }
+	get life(): number { return this._life; }
+	get credits(): number { return this._credits; }
+
+	public addCredits(amount: number): void {
+		this._credits += amount;
+	}
+
+	public removeCredits(amount: number): boolean {
+		if (this._credits < amount) return false;
+		this._credits -= amount;
+		return true;
+	}
+
+	public setCredits(amount: number): void {
+		this._credits = amount;
+	}
+
+	public takeDamage(amount: number): void {
+		this._life -= amount;
+	}
+
+	public heal(amount: number): void {
+		this._life += amount;
+		if (this._life > this.totalLife) {
+			this._life = this.totalLife;
+		}
+	}
+
+	public setProtected(value: boolean): void {
+		this._isProtected = value;
+	}
+
+	public setUsingSkill(value: boolean): void {
+		this._usingSkill = value;
+	}
+
+	public setSpecialBar(value: number): void {
+		this._specialBar = value;
+	}
+
+	public incrementSpecialBar(): void {
+		this._specialBar += 1;
+	}
+
+	public setHit(value: boolean): void {
+		this._hit = value;
+	}
+
+	public useSpecialSkill(target?: Char | Reel) {
+		this._usingSkill = true;
 		this.charContext.useClassSkill(target);
 	}
 
-	public checkBattleResults(result: any, service: GameLogicService) {
-		if (result != null) {
-			this.credits += parseInt(result.toString());
-			this.specialBar += 1;
-
-			service.state = GameStates.WIN;
+	public checkBattleResults(result: PayResult, stateMachine: GameStateMachine, defaultDmg: number) {
+		if (result !== null) {
+			this.addCredits(parseInt(result.toString()));
+			this.incrementSpecialBar();
+			stateMachine.transition(GameStates.WIN);
 		} else {
-			this.hit = true;
-			if (!this.usingSkill && !this.isProtected) {
-				this.life -= service.DEFAULT_DMG;
+			this._hit = true;
+			if (!this._usingSkill && !this._isProtected) {
+				this.takeDamage(defaultDmg);
 			}
-			if (this.isProtected) {
-				this.isProtected = false;
+			if (this._isProtected) {
+				this._isProtected = false;
 			}
 
-			if (this.life <= 0) {
-				service.state = GameStates.LOSE;
+			if (this._life <= 0) {
+				stateMachine.transition(GameStates.LOSE);
 				return;
 			}
 
-			service.state = GameStates.WAITING;
+			stateMachine.transition(GameStates.WAITING);
 		}
 
-		if (this.usingSkill) {
-			this.usingSkill = false;
-			this.specialBar = 0;
+		if (this._usingSkill) {
+			this._usingSkill = false;
+			this._specialBar = 0;
 		}
 
-		this.roundsAlive++;
+		this._roundsAlive++;
 	}
 }

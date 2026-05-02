@@ -1,6 +1,5 @@
 export const DESIGN_WIDTH = 1920;
 export const DESIGN_HEIGHT = 1080;
-export const DESIGN_ASPECT_RATIO = DESIGN_WIDTH / DESIGN_HEIGHT;
 export const MAX_RENDERER_DPI = 2;
 
 export interface ViewportState {

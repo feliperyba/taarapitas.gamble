@@ -1,11 +1,12 @@
 import { Sprite, Application, Texture, FillGradient, TextStyle, Graphics, Container, Text } from 'pixi.js';
 import { GameLogicService, GameStates } from '../../../services/game-logic.service';
-import { COMBINATIONS, PayTable } from '../../pay-module/pay-table';
+import { COMBINATIONS } from '../../pay-module/combinations';
+import { PayTable } from '../../pay-module/pay-table';
 import { getTexture } from '../../../rendering/assets';
 import { SCENE_LAYOUT } from '../../../rendering/viewport';
 
 export class PayTableGUI {
-	private descStyle = (() => {
+	private readonly descStyle = (() => {
 		const g = new FillGradient({
 			start: { x: 0, y: 0 },
 			end: { x: 0, y: 1 },
@@ -28,7 +29,7 @@ export class PayTableGUI {
 		});
 	})();
 
-	private badgeStyle = (() => {
+	private readonly badgeStyle = (() => {
 		const g = new FillGradient({
 			start: { x: 0, y: 0 },
 			end: { x: 0, y: 1 },
@@ -52,7 +53,7 @@ export class PayTableGUI {
 		});
 	})();
 
-	private valueStyle = (() => {
+	private readonly valueStyle = (() => {
 		const g = new FillGradient({
 			start: { x: 0, y: 0 },
 			end: { x: 0, y: 1 },
@@ -75,10 +76,10 @@ export class PayTableGUI {
 		});
 	})();
 
-	private FRAME: Texture = getTexture('assets/paytable_frame.png');
-	private HIGHLIGHT_FRAME: Texture = getTexture('assets/paytable_frame_highlight.png');
-	private FRAME_HIGHLIGHT: Sprite;
-	private payTableLayout = SCENE_LAYOUT.game.paytable;
+	private readonly FRAME: Texture = getTexture('assets/paytable_frame.png');
+	private readonly HIGHLIGHT_FRAME: Texture = getTexture('assets/paytable_frame_highlight.png');
+	private readonly FRAME_HIGHLIGHT!: Sprite;
+	private readonly payTableLayout = SCENE_LAYOUT.game.paytable;
 	private readonly headerHeight = 4;
 	private readonly listGap = 20;
 	private readonly rowStep = 82;
@@ -98,16 +99,17 @@ export class PayTableGUI {
 		radius: 82
 	};
 
-	public payTableContainer = new Container();
-	public payTableObjs = [];
-	public result: any;
+	public readonly payTableContainer = new Container();
+	public readonly payTableRowData: Record<number, { pos: number; rowY: number }> = {};
+	public result: COMBINATIONS | null = null;
 	private changeAlpha = false;
+	private tickerFn: (() => void) | null = null;
 
 	constructor(
-		public app: Application,
-		public sceneRoot: Container,
-		public payTable: PayTable,
-		public _gameLogicService: GameLogicService
+		public readonly app: Application,
+		public readonly sceneRoot: Container,
+		public readonly payTable: PayTable,
+		public readonly _gameLogicService: GameLogicService
 	) {
 		this.payTableContainer.x = this.payTableLayout.x;
 		this.payTableContainer.y = this.payTableLayout.y;
@@ -183,7 +185,7 @@ export class PayTableGUI {
 			payOptionRegion.addChild(payValue);
 			payOptionRegion.addChild(coin);
 
-			this.payTableObjs[payStrategy.enumIndex] = { pos: i, rowY: positionY };
+			this.payTableRowData[payStrategy.enumIndex] = { pos: i, rowY: positionY };
 			this.payTableContainer.addChild(payOptionRegion);
 
 			positionY += this.rowStep + this.payTableLayout.rowGap;
@@ -198,9 +200,9 @@ export class PayTableGUI {
 	}
 
 	public addPayWinAnimations() {
-		this.app.ticker.add(() => {
-			if (this._gameLogicService.state == GameStates.WIN && this.result != null) {
-				const currPayObj = this.payTableObjs[this.result];
+		this.tickerFn = () => {
+			if (this._gameLogicService.state === GameStates.WIN && this.result !== null) {
+				const currPayObj = this.payTableRowData[this.result];
 				this.FRAME_HIGHLIGHT.x = this.rowFrameX - this.highlightOffsetX;
 				this.FRAME_HIGHLIGHT.y = currPayObj.rowY - this.highlightOffsetY;
 				this.FRAME_HIGHLIGHT.visible = true;
@@ -222,7 +224,16 @@ export class PayTableGUI {
 				this.FRAME_HIGHLIGHT.visible = false;
 				this.FRAME_HIGHLIGHT.alpha = 0.92;
 			}
-		});
+		};
+		this.app.ticker.add(this.tickerFn);
+	}
+
+	public destroy(): void {
+		if (this.tickerFn) {
+			this.app.ticker.remove(this.tickerFn);
+			this.tickerFn = null;
+		}
+		this.payTableContainer.destroy({ children: true });
 	}
 
 	private createHighlightSprite(): Sprite {

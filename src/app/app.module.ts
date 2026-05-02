@@ -2,19 +2,20 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { APP_BASE_HREF, LocationStrategy, HashLocationStrategy } from '@angular/common';
 import { AppComponent } from './app.component';
-import { DebuggerComponent } from '../components/debug/debug.component';
-import { FormsModule } from '@angular/forms';
 import { GameLogicService } from '../services/game-logic.service';
+import { GameStateMachine } from '../services/game-state-machine';
+import { GameOverOverlay } from '../services/game-over-overlay';
 import { DebuggerService } from '../services/debugger.service';
 @NgModule({
-	declarations: [ AppComponent, DebuggerComponent ],
-	imports: [ BrowserModule, FormsModule ],
+	imports: [BrowserModule, AppComponent],
 	providers: [
+		GameStateMachine,
+		GameOverOverlay,
 		GameLogicService,
 		DebuggerService,
 		{ provide: APP_BASE_HREF, useValue: '/' },
 		{ provide: LocationStrategy, useClass: HashLocationStrategy }
 	],
-	bootstrap: [ AppComponent ] // boostrap the app component
+	bootstrap: [AppComponent]
 })
 export class AppModule {}

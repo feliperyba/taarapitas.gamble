@@ -1,4 +1,4 @@
-import { Application, Container, FillGradient, TextStyle, Graphics, NineSliceSprite, Text, Texture } from 'pixi.js';
+import { Application, Container, TextStyle, Graphics, Text, Texture } from 'pixi.js';
 import { GameLogicService, GameStates } from '../../services/game-logic.service';
 import { Reel } from '../reel';
 import { Char } from '../char-module/char';
@@ -7,6 +7,18 @@ import { Button } from './button';
 import { PayTable } from '../pay-module/pay-table';
 import { getTexture } from '../../rendering/assets';
 import { SCENE_LAYOUT } from '../../rendering/viewport';
+import { DEFAULT_TEXT_STYLE, ACTION_LABEL_STYLE, ACTION_DETAIL_STYLE, COLOR_WHITE, COLOR_BLACK } from '../pixi-styles';
+import { createText } from '../pixi-helpers';
+import { drawLayeredPanel } from './layout-helpers';
+
+const PANEL_INNER_BG = 0x070302;
+const PANEL_ALTAR_INNER_BG = 0x120907;
+const ACCENT_GOLD = 0xf3d3a0;
+const GRID_LINE_COLOR = 0x120604;
+const GRID_BORDER_COLOR = 0x2d1408;
+const ACTION_LABEL_Y_OFFSET = 42;
+const ACTION_DETAIL_Y_OFFSET = 96;
+const GRID_VIGNETTE_HEIGHT = 12;
 
 export class GUI {
 	public readonly uiRoot = new Container();
@@ -22,97 +34,23 @@ export class GUI {
 	private reelMask?: Graphics;
 	private actionStateText = new Text({ text: '' });
 	private actionDetailText = new Text({ text: '' });
+	private lastActionLabel = '';
+	private lastActionDetail = '';
+	private charGui!: CharGUI;
+	private tickerFn: (() => void) | null = null;
 
-	private DEFAULT_STYLE = (() => {
-		const g = new FillGradient({
-			start: { x: 0, y: 0 },
-			end: { x: 0, y: 1 },
-			textureSpace: 'local'
-		});
-		g.addColorStop(0, '#ffffff').addColorStop(1, '#cccccc');
-		return new TextStyle({
-			fontFamily: 'Primitive',
-			fontSize: 48,
-			fontStyle: 'normal',
-			fontWeight: 'bold',
-			fill: g,
-			stroke: { color: '#000', width: 5 },
-			dropShadow: {
-				color: '#C86913',
-				blur: 0,
-				angle: Math.PI / 6,
-				distance: 0
-			},
-			wordWrap: true,
-			wordWrapWidth: 400,
-			align: 'center'
-		});
-	})();
-
-	private actionLabelStyle = (() => {
-		const g = new FillGradient({
-			start: { x: 0, y: 0 },
-			end: { x: 0, y: 1 },
-			textureSpace: 'local'
-		});
-		g.addColorStop(0, '#fff1c8').addColorStop(1, '#d6a44d');
-		return new TextStyle({
-			fontFamily: 'Primitive',
-			fontSize: 32,
-			fontStyle: 'normal',
-			fontWeight: 'bold',
-			fill: g,
-			stroke: { color: '#000', width: 5 },
-			dropShadow: {
-				color: '#62240e',
-				blur: 0,
-				angle: Math.PI / 6,
-				distance: 0
-			},
-			wordWrap: true,
-			wordWrapWidth: SCENE_LAYOUT.game.statusWell.width - 44,
-			align: 'center'
-		});
-	})();
-
-	private actionDetailStyle = (() => {
-		const g = new FillGradient({
-			start: { x: 0, y: 0 },
-			end: { x: 0, y: 1 },
-			textureSpace: 'local'
-		});
-		g.addColorStop(0, '#fff6db').addColorStop(1, '#c5a067');
-		return new TextStyle({
-			fontFamily: 'Primitive',
-			fontSize: 18,
-			fontStyle: 'normal',
-			fontWeight: 'bold',
-			fill: g,
-			stroke: { color: '#000', width: 4 },
-			dropShadow: {
-				color: '#2d1207',
-				blur: 0,
-				angle: Math.PI / 6,
-				distance: 0
-			},
-			wordWrap: true,
-			wordWrapWidth: SCENE_LAYOUT.game.statusWell.width - 54,
-			align: 'center'
-		});
-	})();
-
-	private btnTexture: Texture;
-	private btnOverTexture: Texture;
-	private btnPushTexture: Texture;
+	private readonly btnTexture: Texture;
+	private readonly btnOverTexture: Texture;
+	private readonly btnPushTexture: Texture;
 
 	constructor(
-		public app: Application,
-		public sceneRoot: Container,
-		public reel: Reel,
-		public char: Char,
-		public payTable: PayTable,
-		public style: TextStyle,
-		public _gameLogicService: GameLogicService
+		public readonly app: Application,
+		public readonly sceneRoot: Container,
+		public readonly reel: Reel,
+		public readonly char: Char,
+		public readonly payTable: PayTable,
+		public readonly style: TextStyle,
+		public readonly _gameLogicService: GameLogicService
 	) {
 		this.btnTexture = getTexture('assets/button.png');
 		this.btnOverTexture = getTexture('assets/button-HOVER.png');
@@ -132,7 +70,6 @@ export class GUI {
 		this.uiRoot.addChild(this.modalLayer);
 		this.sceneRoot.addChild(this.uiRoot);
 
-		this.backdropLayer.addChild(this.createBackdrop());
 		this.leftRailLayer.addChild(this.createRailPanel(SCENE_LAYOUT.game.leftRail, 0.96));
 		this.reelLayer.addChild(this.createReelAltarPanel());
 		this.rightReliquaryLayer.addChild(this.createRailPanel(SCENE_LAYOUT.game.rightReliquary, 0.96));
@@ -142,9 +79,10 @@ export class GUI {
 		this.reelLayer.addChild(this.reel.reelContainer);
 		this.reelLayer.addChild(this.createBoardOverlay());
 
-		const charGui = new CharGUI(this.app, this.char, this._gameLogicService, this.style, this.reel, 0).setup();
-		this.heroAltarLayer.addChild(charGui);
-
+		const charGui = new CharGUI(this.app, this.char, this._gameLogicService, this.style, this.reel, 0);
+		this.charGui = charGui;
+		const charGuiContainer = charGui.setup();
+		this.heroAltarLayer.addChild(charGuiContainer);
 
 		const playBtn = new Button(
 			SCENE_LAYOUT.game.fightButton.height,
@@ -153,21 +91,24 @@ export class GUI {
 			this.btnOverTexture,
 			this.btnPushTexture,
 			'Fight',
-			this.DEFAULT_STYLE
+			DEFAULT_TEXT_STYLE
 		);
 
 		playBtn.btnContainer.x = SCENE_LAYOUT.game.fightButton.x;
 		playBtn.btnContainer.y = SCENE_LAYOUT.game.fightButton.y;
 		playBtn.btnContainer.on('pointerdown', () => {
-			if (this._gameLogicService.state == GameStates.WAITING) {
+			if (this._gameLogicService.state === GameStates.WAITING) {
 				this._gameLogicService.state = GameStates.START;
 			}
 
-			if (this._gameLogicService.state == GameStates.WIN) {
-				for (const r of this.reel.reelArr) {
-					r.container.children[this.reel.reelWinSlotPos].tint = 16777215;
+			if (this._gameLogicService.state === GameStates.WIN) {
+				const winPos = this.reel.reelWinSlotPos;
+				if (winPos !== undefined) {
+					for (const r of this.reel.reelArr) {
+						r.container.children[winPos].tint = COLOR_WHITE;
+					}
+					this.reel.reelWinSlotPos = undefined;
 				}
-				this.reel.reelWinSlotPos = 0;
 				this._gameLogicService.state = GameStates.START;
 			}
 		});
@@ -176,108 +117,67 @@ export class GUI {
 		this.actionLayer.addChild(this.createButtonShadow(playBtn.btnContainer.x, playBtn.btnContainer.y));
 		this.actionLayer.addChild(playBtn.btnContainer);
 
-		this.app.ticker.add(() => {
+		this.tickerFn = () => {
 			playBtn.setDisabled(!(this._gameLogicService.state === GameStates.WAITING || this._gameLogicService.state === GameStates.WIN));
 			this.updateActionFeedback();
-		});
+		};
+		this.app.ticker.add(this.tickerFn);
 	}
 
-	private createBackdrop(): Container {
-		const container = new Container();
- 		// todo: add some subtle animated background elements here, like particles and shaders for especial moments and effects 
-		return container;
+	public destroy(): void {
+		if (this.tickerFn) {
+			this.app.ticker.remove(this.tickerFn);
+			this.tickerFn = null;
+		}
+		this.charGui?.destroy();
+		this.uiRoot.destroy({ children: true });
 	}
 
 	private createTopHudBeam(): Container {
 		const beam = new Container();
 		const hud = SCENE_LAYOUT.game.topHud;
-		const panel = new Graphics();
-		const trim = new Graphics();
-		const divider = new Graphics();
 
-		panel.roundRect(hud.x, hud.y + 8, hud.width, hud.height - 8, 28).fill({ color: 0x120706, alpha: 0.84 });
-		panel
-			.roundRect(hud.x + 10, hud.y + 18, hud.width - 20, hud.height - 30, 22)
-			.fill({ color: 0x070302, alpha: 0.8 })
-			.stroke({ color: 0xa06f37, alpha: 0.26, width: 3 });
-		trim.roundRect(hud.x + 18, hud.y + 24, hud.width - 36, 22, 12).fill({ color: 0xf7d7a5, alpha: 0.08 });
-		trim.roundRect(hud.x + 22, hud.bottom - 36, hud.width - 44, 10, 8).fill({ color: 0x000000, alpha: 0.24 });
+		const panel = drawLayeredPanel([
+			{ x: hud.x, y: hud.y + 8, width: hud.width, height: hud.height - 8, radius: 28, fillColor: 0x120706, fillAlpha: 0.84 },
+			{ x: hud.x + 10, y: hud.y + 18, width: hud.width - 20, height: hud.height - 30, radius: 22, fillColor: PANEL_INNER_BG, fillAlpha: 0.8, strokeColor: 0xa06f37, strokeAlpha: 0.26, strokeWidth: 3 },
+		]);
 
+		const trim = drawLayeredPanel([
+			{ x: hud.x + 18, y: hud.y + 24, width: hud.width - 36, height: 22, radius: 12, fillColor: 0xf7d7a5, fillAlpha: 0.08 },
+			{ x: hud.x + 22, y: hud.y + hud.bottom - 36, width: hud.width - 44, height: 10, radius: 8, fillColor: COLOR_BLACK, fillAlpha: 0.24 },
+		]);
 
 		beam.addChild(panel);
 		beam.addChild(trim);
-		beam.addChild(divider);
 		return beam;
 	}
 
 	private createRailPanel(rect: { x: number; y: number; width: number; height: number }, alpha: number): Container {
 		const container = new Container();
-		const shadow = new Graphics();
-		const body = new Graphics();
-		const inner = new Graphics();
-
-		shadow.roundRect(rect.x + 14, rect.y + 18, rect.width - 14, rect.height - 12, 34).fill({ color: 0x000000, alpha: 0.28 });
-		body
-			.roundRect(rect.x, rect.y, rect.width, rect.height, 32)
-			.fill({ color: 0x100605, alpha })
-			.stroke({ color: 0x6f4924, alpha: 0.34, width: 3 });
-		inner
-			.roundRect(rect.x + 12, rect.y + 12, rect.width - 24, rect.height - 24, 24)
-			.fill({ color: 0x070302, alpha: 0.8 })
-			.stroke({ color: 0xe1b86a, alpha: 0.12, width: 2 });
-
-		container.addChild(shadow);
-		container.addChild(body);
-		container.addChild(inner);
-
+		const panel = drawLayeredPanel([
+			{ x: rect.x + 14, y: rect.y + 18, width: rect.width - 14, height: rect.height - 12, radius: 34, fillColor: COLOR_BLACK, fillAlpha: 0.28 },
+			{ x: rect.x, y: rect.y, width: rect.width, height: rect.height, radius: 32, fillColor: 0x100605, fillAlpha: alpha, strokeColor: 0x6f4924, strokeAlpha: 0.34, strokeWidth: 3 },
+			{ x: rect.x + 12, y: rect.y + 12, width: rect.width - 24, height: rect.height - 24, radius: 24, fillColor: PANEL_INNER_BG, fillAlpha: 0.8, strokeColor: 0xe1b86a, strokeAlpha: 0.12, strokeWidth: 2 },
+		]);
+		container.addChild(panel);
 		return container;
 	}
 
 	private createReelAltarPanel(): Container {
 		const container = new Container();
 		const altar = SCENE_LAYOUT.game.reelAltar;
-		const shadow = new Graphics();
+		const viewport = SCENE_LAYOUT.game.reelViewport;
 
-		const body = new Graphics();
-		const innerFrame = new Graphics();
-		const viewportMat = new Graphics();
+		const panel = drawLayeredPanel([
+			{ x: altar.x + 20, y: altar.y + 26, width: altar.width - 20, height: altar.height - 18, radius: 44, fillColor: COLOR_BLACK, fillAlpha: 0.34 },
+			{ x: altar.x + 24, y: altar.y + 30, width: altar.width - 48, height: altar.height - 56, radius: 38, fillColor: 0x0a0403, fillAlpha: 0.82, strokeColor: 0xb57f41, strokeAlpha: 0.22, strokeWidth: 4 },
+			{ x: altar.x + 54, y: altar.y + 72, width: altar.width - 108, height: altar.height - 126, radius: 28, fillColor: PANEL_ALTAR_INNER_BG, fillAlpha: 0.46, strokeColor: 0xe0b56b, strokeAlpha: 0.14, strokeWidth: 2 },
+			{ x: viewport.x - 14, y: viewport.y - 14, width: viewport.width + 28, height: viewport.height + 28, radius: 24, fillColor: 0x090403, fillAlpha: 0.84 },
+			{ x: viewport.x - 4, y: viewport.y - 4, width: viewport.width + 8, height: viewport.height + 8, radius: 20, strokeColor: 0x4b2b18, strokeAlpha: 0.42, strokeWidth: 3 },
+		]);
 
-		shadow.roundRect(altar.x + 20, altar.y + 26, altar.width - 20, altar.height - 18, 44).fill({ color: 0x000000, alpha: 0.34 });
-
-		body
-			.roundRect(altar.x + 24, altar.y + 30, altar.width - 48, altar.height - 56, 38)
-			.fill({ color: 0x0a0403, alpha: 0.82 })
-			.stroke({ color: 0xb57f41, alpha: 0.22, width: 4 });
-		innerFrame
-			.roundRect(altar.x + 54, altar.y + 72, altar.width - 108, altar.height - 126, 28)
-			.fill({ color: 0x120907, alpha: 0.46 })
-			.stroke({ color: 0xe0b56b, alpha: 0.14, width: 2 });
-
-		viewportMat
-			.roundRect(
-				SCENE_LAYOUT.game.reelViewport.x - 14,
-				SCENE_LAYOUT.game.reelViewport.y - 14,
-				SCENE_LAYOUT.game.reelViewport.width + 28,
-				SCENE_LAYOUT.game.reelViewport.height + 28,
-				24
-			)
-			.fill({ color: 0x090403, alpha: 0.84 });
-		viewportMat
-			.roundRect(
-				SCENE_LAYOUT.game.reelViewport.x - 4,
-				SCENE_LAYOUT.game.reelViewport.y - 4,
-				SCENE_LAYOUT.game.reelViewport.width + 8,
-				SCENE_LAYOUT.game.reelViewport.height + 8,
-				20
-			)
-			.stroke({ color: 0x4b2b18, alpha: 0.42, width: 3 });
-
-		container.addChild(shadow);
-		container.addChild(body);
-		container.addChild(innerFrame);
-		container.addChild(viewportMat);
+		container.addChild(panel);
 		container.addChild(this.createBoardBackdrop());
-		
 		return container;
 	}
 
@@ -290,7 +190,6 @@ export class GUI {
 
 	private createBoardBackdrop(): Graphics {
 		const reelViewport = SCENE_LAYOUT.game.reelViewport;
-		const backdrop = new Graphics();
 		const { width, height } = this.getReelBoardSize();
 		const frameInset = reelViewport.frameInset;
 		const boardX = reelViewport.x - frameInset;
@@ -298,20 +197,13 @@ export class GUI {
 		const boardWidth = width + frameInset * 2;
 		const boardHeight = height + frameInset * 2;
 
-		backdrop.roundRect(boardX - 18, boardY - 24, boardWidth + 36, boardHeight + 48, 42).fill({ color: 0x040101, alpha: 0.5 });
-		backdrop
-			.roundRect(boardX, boardY, boardWidth, boardHeight, 28)
-			.fill({ color: 0x070302, alpha: 0.96 })
-			.stroke({ color: 0x7a4a21, alpha: 0.72, width: 4 });
-		backdrop
-			.roundRect(boardX + 10, boardY + 10, boardWidth - 20, boardHeight - 20, 20)
-			.stroke({ color: 0xe6b55b, alpha: 0.22, width: 2 });
-		backdrop
-			.roundRect(boardX + 18, boardY + 18, boardWidth - 36, boardHeight - 36, 16)
-			.fill({ color: 0x120907, alpha: 0.24 });
-		backdrop.roundRect(boardX + 22, boardY + 18, boardWidth - 44, 14, 10).fill({ color: 0xf3d3a0, alpha: 0.08 });
-
-		return backdrop;
+		return drawLayeredPanel([
+			{ x: boardX - 18, y: boardY - 24, width: boardWidth + 36, height: boardHeight + 48, radius: 42, fillColor: 0x040101, fillAlpha: 0.5 },
+			{ x: boardX, y: boardY, width: boardWidth, height: boardHeight, radius: 28, fillColor: PANEL_INNER_BG, fillAlpha: 0.96, strokeColor: 0x7a4a21, strokeAlpha: 0.72, strokeWidth: 4 },
+			{ x: boardX + 10, y: boardY + 10, width: boardWidth - 20, height: boardHeight - 20, radius: 20, strokeColor: 0xe6b55b, strokeAlpha: 0.22, strokeWidth: 2 },
+			{ x: boardX + 18, y: boardY + 18, width: boardWidth - 36, height: boardHeight - 36, radius: 16, fillColor: PANEL_ALTAR_INNER_BG, fillAlpha: 0.24 },
+			{ x: boardX + 22, y: boardY + 18, width: boardWidth - 44, height: 14, radius: 10, fillColor: ACCENT_GOLD, fillAlpha: 0.08 },
+		]);
 	}
 
 	private configureReels() {
@@ -329,7 +221,7 @@ export class GUI {
 				this.reel.SYMBOL_SIZE * this.reel.SLOT_NUMBER,
 				SCENE_LAYOUT.game.reelViewport.maskRadius
 			)
-			.fill({ color: 0xffffff, alpha: 1 });
+			.fill({ color: COLOR_WHITE, alpha: 1 });
 		this.reelMask.alpha = 0.001;
 		this.reel.reelContainer.addChild(this.reelMask);
 		this.reel.reelContainer.mask = this.reelMask;
@@ -346,18 +238,18 @@ export class GUI {
 		overlay.y = SCENE_LAYOUT.game.reelViewport.y;
 		overlay.scale.set(SCENE_LAYOUT.game.reelViewport.reelScale);
 
-		grid.rect(0, 0, localWidth, localHeight).stroke({ color: 0x2d1408, alpha: 0.82, width: 6 });
+		grid.rect(0, 0, localWidth, localHeight).stroke({ color: GRID_BORDER_COLOR, alpha: 0.82, width: 6 });
 
 		for (let column = 1; column < this.reel.SLOT_NUMBER; column++) {
-			grid.moveTo(column * this.reel.REEL_WIDTH, 0).lineTo(column * this.reel.REEL_WIDTH, localHeight).stroke({ color: 0x120604, alpha: 0.92, width: 6 });
+			grid.moveTo(column * this.reel.REEL_WIDTH, 0).lineTo(column * this.reel.REEL_WIDTH, localHeight).stroke({ color: GRID_LINE_COLOR, alpha: 0.92, width: 6 });
 		}
 
 		for (let row = 1; row < this.reel.SLOT_NUMBER; row++) {
-			grid.moveTo(0, row * this.reel.SYMBOL_SIZE).lineTo(localWidth, row * this.reel.SYMBOL_SIZE).stroke({ color: 0x120604, alpha: 0.92, width: 6 });
+			grid.moveTo(0, row * this.reel.SYMBOL_SIZE).lineTo(localWidth, row * this.reel.SYMBOL_SIZE).stroke({ color: GRID_LINE_COLOR, alpha: 0.92, width: 6 });
 		}
 
-		grid.rect(0, 0, localWidth, 12).fill({ color: 0x000000, alpha: 0.22 });
-		grid.rect(0, localHeight - 12, localWidth, 12).fill({ color: 0x000000, alpha: 0.28 });
+		grid.rect(0, 0, localWidth, GRID_VIGNETTE_HEIGHT).fill({ color: COLOR_BLACK, alpha: 0.22 });
+		grid.rect(0, localHeight - GRID_VIGNETTE_HEIGHT, localWidth, GRID_VIGNETTE_HEIGHT).fill({ color: COLOR_BLACK, alpha: 0.28 });
 		gloss.roundRect(8, 8, localWidth - 16, 18, 10).fill({ color: 0xf7ddb1, alpha: 0.06 });
 
 		overlay.addChild(grid);
@@ -368,31 +260,17 @@ export class GUI {
 	private createStatusPanel(): Container {
 		const region = SCENE_LAYOUT.game.statusWell;
 		const panel = new Container();
-		const background = new Graphics();
-		const accent = new Graphics();
 
-		background
-			.roundRect(region.x, region.y, region.width, region.height, 28)
-			.fill({ color: 0x150806, alpha: 0.88 })
-			.stroke({ color: 0x94632f, alpha: 0.26, width: 3 });
-		background
-			.roundRect(region.x + 10, region.y + 10, region.width - 20, region.height - 20, 22)
-			.fill({ color: 0x090302, alpha: 0.76 })
-			.stroke({ color: 0xe3bb73, alpha: 0.12, width: 2 });
-		accent.roundRect(region.x + 16, region.y + 16, region.width - 32, 18, 10).fill({ color: 0xf3d3a0, alpha: 0.08 });
+		const background = drawLayeredPanel([
+			{ x: region.x, y: region.y, width: region.width, height: region.height, radius: 28, fillColor: 0x150806, fillAlpha: 0.88, strokeColor: 0x94632f, strokeAlpha: 0.26, strokeWidth: 3 },
+			{ x: region.x + 10, y: region.y + 10, width: region.width - 20, height: region.height - 20, radius: 22, fillColor: 0x090302, fillAlpha: 0.76, strokeColor: 0xe3bb73, strokeAlpha: 0.12, strokeWidth: 2 },
+			{ x: region.x + 16, y: region.y + 16, width: region.width - 32, height: 18, radius: 10, fillColor: ACCENT_GOLD, fillAlpha: 0.08 },
+		]);
 
-		this.actionStateText = new Text({ text: 'Ready', style: this.actionLabelStyle });
-		this.actionStateText.anchor.set(0.5, 0);
-		this.actionStateText.x = region.centerX;
-		this.actionStateText.y = region.y + 42;
-
-		this.actionDetailText = new Text({ text: 'The altar waits for your next fight.', style: this.actionDetailStyle });
-		this.actionDetailText.anchor.set(0.5, 0);
-		this.actionDetailText.x = region.centerX;
-		this.actionDetailText.y = region.y + 96;
+		this.actionStateText = createText({ text: 'Ready', style: ACTION_LABEL_STYLE, anchorX: 0.5, x: region.centerX, y: region.y + ACTION_LABEL_Y_OFFSET });
+		this.actionDetailText = createText({ text: 'The altar waits for your next fight.', style: ACTION_DETAIL_STYLE, anchorX: 0.5, x: region.centerX, y: region.y + ACTION_DETAIL_Y_OFFSET });
 
 		panel.addChild(background);
-		panel.addChild(accent);
 		panel.addChild(this.actionStateText);
 		panel.addChild(this.actionDetailText);
 		return panel;
@@ -418,7 +296,10 @@ export class GUI {
 				detail = 'Your champion has fallen and the altar grows silent.';
 				break;
 			default:
-				if (this.char.specialBar >= 3) {
+				if (this.char.credits <= 0) {
+					label = 'No gold';
+					detail = 'You have no gold coins to fight.';
+				} else if (this.char.specialBar >= 3) {
 					detail = 'Skill is ready. Fight or unleash your class power.';
 				} else {
 					detail = 'Fight spends 1 gold unless a skill is primed.';
@@ -426,19 +307,21 @@ export class GUI {
 				break;
 		}
 
-		this.actionStateText.text = label;
-		this.actionDetailText.text = detail;
+		if (label !== this.lastActionLabel) {
+			this.lastActionLabel = label;
+			this.actionStateText.text = label;
+		}
+		if (detail !== this.lastActionDetail) {
+			this.lastActionDetail = detail;
+			this.actionDetailText.text = detail;
+		}
 	}
 
 	private createButtonShadow(x: number, y: number): Graphics {
 		const shadow = new Graphics();
 		shadow
 			.roundRect(x + 10, y + 14, SCENE_LAYOUT.game.fightButton.width, SCENE_LAYOUT.game.fightButton.height, 32)
-			.fill({ color: 0x000000, alpha: 0.3 });
+			.fill({ color: COLOR_BLACK, alpha: 0.3 });
 		return shadow;
-	}
-
-	public lerp(a1, a2, t) {
-		return a1 * (1 - t) + a2 * t;
 	}
 }
